@@ -1,0 +1,22 @@
+# Live config reload 
+live_config_reload = true
+
+[env]
+projects = "~/Documents/Development"
+
+[window]
+opacity = 0.8
+startup_mode = "Windowed"
+dynamic_title = false
+title = "Alacritty Terminal"
+
+[font]
+size = 13 
+normal = {family="Hack Nerd Font", style="Regular" }
+bold = {family="Hack Nerd Font", style="Bold" }
+italic = {family="Hack Nerd Font", style="Italic" }
+bold_italic = {family="Hack Nerd Font", style="Bold Italic" }
+
+
+[cursor]
+style = { shape="Block", blinking="On" }
