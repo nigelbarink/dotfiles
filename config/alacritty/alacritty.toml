@@ -1,0 +1,17 @@
+# Live config reload 
+live_config_reload = true
+
+[env]
+projects = "~/Documents/Development"
+
+[window]
+opacity = 0.8
+startup_mode = "Windowed"
+dynamic_title = false
+title = "Alacritty Terminal"
+
+[font]
+size = 13 
+
+[cursor]
+style = { shape = "Block", blinking= "On"}
