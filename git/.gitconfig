@@ -1,6 +1,7 @@
 [user]
 	email = nigelbarink@hotmail.com
 	name = Nigel
+	signingkey = C54278C495538619
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f

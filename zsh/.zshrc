@@ -1,7 +1,8 @@
 
-if [ "$TMUX" = "" ] && [ -z "$TMUX"]; then
-	tmux attach -t $(tmux display-message -p '#S') || tmux new-session
-fi
+# attach to an existing tmux session or create a new one if none exist
+#if [ "$TMUX" = "" ] && [ -z "$TMUX"]; then
+#	tmux attach -t $(tmux display-message -p '#S') || tmux new-session
+#fi
 
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
@@ -152,7 +153,9 @@ export PATH=$PATH:/home/nigel/Hacking/Development/depot_tools
 # Add Clang-Tools 
 export PATH=$PATH:$HOME/llvm/build/bin
 
-
+# Add nvim 
+export PATH=$PATH:/usr/local/bin/nvim/bin:
+export PATH=$PATH:/opt/gradle/gradle-8.7/bin
 eval "$(starship init zsh)"
 source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 
@@ -171,3 +174,4 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
+alias dev="cd /home/nigel/Hacking/Development"
