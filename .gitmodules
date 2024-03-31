@@ -1,0 +1,3 @@
+[submodule "nvim"]
+	path = nvim
+	url = gitea@git.barink.dev:Nigel/neovim_config.git
