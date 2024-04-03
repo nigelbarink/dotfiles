@@ -14,9 +14,10 @@ fi
 typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-
 # Path to your oh-my-zsh installation.
 export ZSH="/home/nigel/.oh-my-zsh"
+
+bindkey -v 
 
 ZSH_THEME="lambda"
 
@@ -30,7 +31,6 @@ DISABLE_AUTO_TITLE="true"
 ENABLE_CORRECTION="true"
 
 HIST_STAMPS="dd/mm/yyyy"
-
 
 # Which plugins would you like to load?
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting tmux debian themes)
@@ -60,6 +60,10 @@ DOTNET_ROOT=$HOME/dotnet
 PATH=$PATH:$HOME/dotnet
 export PATH=$PATH:/home/nigel/Hacking/Development/depot_tools
 
+# Personal Aliases
+alias zshconfig="mate ~/.zshrc"
+alias ohmyzsh="mate ~/.oh-my-zsh"
+
 # Add Clang-Tools 
 export PATH=$PATH:$HOME/llvm/build/bin
 
@@ -81,7 +85,5 @@ source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 # zsh paramater for dotnet cli tab completion
 compctl -K _dotnet_zsh_complete dotnet
 
-
-
-
 eval "$(starship init zsh)"
+
