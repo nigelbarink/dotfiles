@@ -18,6 +18,8 @@ typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 export ZSH="/home/nigel/.oh-my-zsh"
 
 bindkey -v 
+bindkey '^R' history-incremental-search-backward
+bindkey '^S' history-incremental-search-forward
 
 ZSH_THEME="lambda"
 
@@ -33,9 +35,13 @@ ENABLE_CORRECTION="true"
 HIST_STAMPS="dd/mm/yyyy"
 
 # Which plugins would you like to load?
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting tmux debian themes)
+plugins=(git vi-mode zsh-autosuggestions zsh-syntax-highlighting tmux debian themes)
 
 source $ZSH/oh-my-zsh.sh
+
+# Add the fzf key-bindings and completions 
+source /usr/share/fzf/key-bindings.zsh
+source /usr/share/fzf/completion.zsh
 
 # User configuration
 source ~/.bashrc
@@ -51,10 +57,10 @@ if [[ -n $SSH_CONNECTION ]]; then
  fi
 
 # Personal aliases
-alias zshconfig="mate ~/.zshrc"
-alias ohmyzsh="mate ~/.oh-my-zsh"
+alias zshconfig="nvim ~/.zshrc"
+alias ohmyzsh="nvim ~/.oh-my-zsh"
 alias dev="cd /home/nigel/Hacking/Development"
-
+alias dotfiles="cd /home/nigel/.dotfiles"
 # Set Environment Variables
 DOTNET_ROOT=$HOME/dotnet
 PATH=$PATH:$HOME/dotnet
@@ -71,6 +77,9 @@ export PATH=$PATH:$HOME/llvm/build/bin
 export PATH=$PATH:/usr/local/bin/nvim/bin:
 export PATH=$PATH:/opt/gradle/gradle-8.7/bin
 
+# Add GoLang 
+export PATH=$PATH:/usr/local/go/bin
+
 
 # Add Autocompletion tools
 _dotnet_zsh_complete()
@@ -85,5 +94,6 @@ source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 # zsh paramater for dotnet cli tab completion
 compctl -K _dotnet_zsh_complete dotnet
 
+eval "$(fzf --zsh)"
 eval "$(starship init zsh)"
 
