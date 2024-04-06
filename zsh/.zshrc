@@ -35,7 +35,7 @@ ENABLE_CORRECTION="true"
 HIST_STAMPS="dd/mm/yyyy"
 
 # Which plugins would you like to load?
-plugins=(git vi-mode zsh-autosuggestions zsh-syntax-highlighting tmux debian themes)
+plugins=(git vi-mode zsh-autosuggestions zsh-syntax-highlighting tmux debian themes web-search)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -59,7 +59,7 @@ if [[ -n $SSH_CONNECTION ]]; then
 # Personal aliases
 alias zshconfig="nvim ~/.zshrc"
 alias ohmyzsh="nvim ~/.oh-my-zsh"
-alias dev="cd /home/nigel/Hacking/Development"
+alias dev="cd /home/nigel/Development"
 alias dotfiles="cd /home/nigel/.dotfiles"
 # Set Environment Variables
 DOTNET_ROOT=$HOME/dotnet
@@ -71,7 +71,7 @@ alias zshconfig="mate ~/.zshrc"
 alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # Add Clang-Tools 
-export PATH=$PATH:$HOME/llvm/build/bin
+export PATH=$PATH:/usr/local/llvm
 
 # Add nvim 
 export PATH=$PATH:/usr/local/bin/nvim/bin:
