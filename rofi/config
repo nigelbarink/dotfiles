@@ -1,0 +1,6 @@
+rofi.modes: "window, run, ssh, drun"
+rofi.color-enabled: true
+
+rofi.lines: 15
+
+rofi.theme: /usr/share/rofi/themes/Monokai.rasi

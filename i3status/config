@@ -1,0 +1,41 @@
+general {
+    output_format = "i3bar"
+    colors = true
+    interval = 10
+}
+
+order += "cpu_usage"
+order += "memory"
+order += "disk /"
+order += "ethernet enp4s0"
+order += "tztime local"
+
+
+tztime local {
+    format = "%d/%m/%Y - %H:%M"
+}
+
+ethernet enp4s0 {
+    format_up = "E: %ip (%speed)"
+    format_down = "E: down"
+}
+
+disk "/" {
+    format = "Disk free: %free"
+}
+
+load {
+    format = "Load: %5min"
+}
+
+cpu_usage {
+    max_threshold = 95
+    degraded_threshold = 80
+    format = "CPU (total: %usage) 0: %cpu0 1: %cpu1 2: %cpu2"
+}
+
+memory {
+    format= "MEM: %percentage_used used, %percentage_free free, (%used/%total)"
+    threshold_degraded= 10%
+    threshold_critical= 3%
+}
