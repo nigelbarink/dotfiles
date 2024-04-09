@@ -18,4 +18,4 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 curl -fsSL https://ollama.com/install.sh | sh
 ollama run codellama:7b # See https://ollama.com/library/codellama for available models 
 
-
+apt install picom
