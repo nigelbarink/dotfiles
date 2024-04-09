@@ -1,4 +1,8 @@
-
+#
+# _  _ _   _    ___  ____ _  _    ____ ____ _  _ ____ _ ____ 
+# |\/|  \_/       /  [__  |__|    |    |  | |\ | |___ | | __ 
+# |  |   |       /__ ___] |  |    |___ |__| | \| |    | |__] 
+#
 # attach to an existing tmux session or create a new one if none exist
 if [ "$TMUX" = "" ] && [ -z "$TMUX"]; then
 	tmux attach -t $(tmux display-message -p '#S') || tmux new-session
@@ -23,6 +27,8 @@ bindkey '^S' history-incremental-search-forward
 
 ZSH_THEME="lambda"
 
+setxkbmap us
+
 # Use case-sensitive completion.
 CASE_SENSITIVE="true"
 
@@ -43,9 +49,6 @@ source $ZSH/oh-my-zsh.sh
 source /usr/share/fzf/key-bindings.zsh
 source /usr/share/fzf/completion.zsh
 
-# User configuration
-source ~/.bashrc
-
 # Set my language environment
 export LANG=en_GB.UTF-8
 
@@ -61,25 +64,10 @@ alias zshconfig="nvim ~/.zshrc"
 alias ohmyzsh="nvim ~/.oh-my-zsh"
 alias dev="cd /home/nigel/Development"
 alias dotfiles="cd /home/nigel/.dotfiles"
-# Set Environment Variables
-DOTNET_ROOT=$HOME/dotnet
-PATH=$PATH:$HOME/dotnet
-export PATH=$PATH:/home/nigel/Hacking/Development/depot_tools
 
 # Personal Aliases
 alias zshconfig="mate ~/.zshrc"
 alias ohmyzsh="mate ~/.oh-my-zsh"
-
-# Add Clang-Tools 
-export PATH=$PATH:/usr/local/llvm
-
-# Add nvim 
-export PATH=$PATH:/usr/local/bin/nvim/bin:
-export PATH=$PATH:/opt/gradle/gradle-8.7/bin
-
-# Add GoLang 
-export PATH=$PATH:/usr/local/go/bin
-
 
 # Add Autocompletion tools
 _dotnet_zsh_complete()
