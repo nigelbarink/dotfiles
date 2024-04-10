@@ -6,3 +6,4 @@ mkdir -p $HOME/.config/i3 && stow --dotfiles i3 -t $HOME/.config/i3
 mkdir -p $HOME/.config/i3status && stow --dotfiles i3status -t $HOME/.config/i3status
 mkdir -p $HOME/.config/rofi && stow --dotfiles rofi -t $HOME/.config/rofi
 stow --dotfiles starship -t $HOME/.config
+stow --dotfiles picom -t $HOME/.config
