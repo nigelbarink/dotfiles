@@ -4,6 +4,7 @@ general {
     interval = 10
 }
 
+order += "volume master"
 order += "cpu_usage"
 order += "memory"
 order += "disk /"
@@ -39,3 +40,11 @@ memory {
     threshold_degraded= 10%
     threshold_critical= 3%
 }
+
+volume master {
+    format = "♪: %volume"
+    device = "default"
+    mixer = "Master"
+    mixer_idx = 0
+}
+
