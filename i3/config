@@ -16,6 +16,9 @@ set $mod Mod4
 font pango:Hack Nerd Font 11
 exec --no-startup-id picom -b
 exec --no-startup-id feh --bg-fill $HOME/Pictures/Wallpapers/430795.jpg
+exec_always --no-startup-id autotiling -w 1 3 5 7 9
+exec --no-startup-id "sh ~/.xprofile"
+
 focus_follows_mouse no
 # This font is widely installed, provides lots of unicode glyphs, right-to-left
 # text rendering and scalability on retina/hidpi displays (thanks to pango).
@@ -30,7 +33,6 @@ focus_follows_mouse no
 
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
-
 # start a terminal
 bindsym $mod+Return exec alacritty
 
@@ -211,5 +213,7 @@ bindsym XF86MonBrightnessDown exec xbacklight -dec 20 # decrease screen brightne
 bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5% # raise volume
 bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5% # lower volume
 bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle # toggle mute for default device
-# use i3lock-fancy
-bindsym $mod-z exec i3lock-fancy 
+
+for_window [title="virtual Machine Manager"] floating enable
+for_window [class="plasmashell" window_type="notification"] floating enable, border none, move right 700px, move down 450px
+no_focus [class="plasmashell" window_type="notification"] 
