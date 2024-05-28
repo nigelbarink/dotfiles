@@ -145,4 +145,4 @@ configuration {
       sorting-method:    "name";
   }
 }
-@theme "arthur"
+@theme "/home/nigel/.local/share/rofi/themes/rounded-purple-dark.rasi"

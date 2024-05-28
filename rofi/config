@@ -3,4 +3,4 @@ rofi.color-enabled: true
 
 rofi.lines: 15
 
-rofi.theme: /usr/share/rofi/themes/Monokai.rasi
+rofi.theme: /usr/share/rofi/themes/rounded-purple-dark.rasi
