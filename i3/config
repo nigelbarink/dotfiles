@@ -34,7 +34,7 @@ focus_follows_mouse no
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 # start a terminal
-bindsym $mod+Return exec alacritty
+bindsym $mod+Return exec wezterm 
 
 # kill focused window
 bindsym $mod+q kill
@@ -172,7 +172,7 @@ bindsym $mod+r mode "resize"
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 
 gaps inner 10
-for_window [all] title_window_icon on padding 5 
+#for_window [all] title_window_icon on padding 5 
 title_align center
 # include ~/.dotfiles/i3/catpuccin-macchiato
 # include ~/.dotfiles/i3/catpuccin
@@ -219,13 +219,11 @@ bindsym XF86AudioNext exec playerctl next
 bindsym XF86AudioPrev exec playerctl previous
 bindsym XF86MonBrightnessUp exec xbacklight -inc 20 # increase screen brightness
 bindsym XF86MonBrightnessDown exec xbacklight -dec 20 # decrease screen brightness
-bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5% # raise volume
-bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5% # lower volume
+bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5 # raise volume
+bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5 # lower volume
 bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle # toggle mute for default device
 
-for_window [window_role="pop-up"] floating enable
-for_window [title="virtual Machine Manager"] floating enable
-for_window [class="plasmashell" window_type="notification"] floating enable, border none, move right 700px, move down 450px
-no_focus [class="plasmashell" window_type="notification"] 
-for_window [title="Bitwarden" window_role="pop-up"] floating enable
-
+for_window [window_role="pop-up"], floating enable
+for_window [title="virtual Machine Manager"], floating enable
+for_window [class="plasmashell" window_type="notification"], floating enable, border none, move right 700px, move down 450px, no_focus
+for_window [title="Bitwarden" window_role="pop-up"], floating enable
