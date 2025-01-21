@@ -9,3 +9,5 @@ mkdir -p $HOME/.config/polybar && stow --dotfiles polybar -t $HOME/.config/polyb
 stow --dotfiles starship -t $HOME/.config
 stow --dotfiles starship -t $HOME/.config
 stow --dotfiles picom -t $HOME/.config
+stow --dotfiles emacs -t $HOME/.config
+
