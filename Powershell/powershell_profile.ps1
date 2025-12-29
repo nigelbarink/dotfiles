@@ -5,7 +5,7 @@ Import-Module Catppuccin
 $Flavor = $Catppuccin['Mocha']
 Import-Module -Name Microsoft.WinGet.CommandNotFound
 Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
-Invoke-Expression (& { (zoxide init powershell | Out-String ) })
+Invoke-Expression (& { (zoxide init --cmd cd powershell | Out-String ) })
 
 # The following colors are used by PowerShell's formatting
 # Again PS 7.2+ only
@@ -31,29 +31,65 @@ $ENV:EDITOR="nvim"
 set-alias -Name emacs -Value 'runemacs.exe -nw'
 Set-PSReadlineOption -Colors $Colors 
 $ENV:YAZI_FILE_ONE = 'C:\Program Files\Git\usr\bin\file.exe'
-function y (){
+function y ()
+{
     $tmp = [System.IO.Path]::GetTempFileName()
     yazi $args --cwd-file="$tmp"
     $cwd = Get-Content -Path $tmp -Encoding UTF8
-    if ( -not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path) {
+    if ( -not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path)
+    {
         Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
     }
 
     Remove-Item -Path $tmp
 }
 
-function Watch {
+function Watch
+{
     param (
         [ScriptBlock]$Function,
         [int]$Time = 2
     )
 
-    while ($true) {
+    while ($true)
+    {
         Clear-Host
         & $Function
         Start-Sleep -Seconds $Time
     }
 }
+
+function prompt
+{ 
+    # Get IP info
+    $ipv4=Get-CimInstance -Class Win32_NetworkAdapterConfiguration -Filter IPEnabled=$true | Select-Object -ExpandProperty IPAddress | Select-String 192.*
+    $ipv4 = ($ipv4 | ForEach-Object { $_.ToString().Trim() }) -join ','
+    $ipv4Label = ''
+    if (-not $ipv4)
+    {
+        $ipv4Label= "IP N/A"
+    } else
+    {
+        $ipv4Label= "IP $ipv4"
+
+    }
+
+    # Get Git branch if available 
+    $gitBranch = ''
+    if (git rev-parse --is-inside-work-tree 2>$null)
+    {
+        $currentBranch = git rev-parse --abbrev-ref HEAD
+        $gitBranch = "GIT: $currentBranch"
+    }
+
+    $currentLocation=$executionContext.SessionState.Path.CurrentLocation
+
+    # default prompt
+    "[$ipv4Label $gitBranch ]`n$currentLocation@$Env:COMPUTERNAME $('(PS [>_])$' * ($nestedPromptLevel + 1)) ";
+}
+
+set-alias -Name lg -Value lazygit
+
 
 
 podman completion powershell | Out-string  | Invoke-Expression
