@@ -1,59 +1,66 @@
-; set variables
+; set variables 
 (setq ido-enable-flex-matching t)
 (setq ido-everywhere t)
 (setq inhibit-splash-screen t)
 (setq tab-width 4)
 (setq custom-file "~/emacs-custom.el")
-(setq display-line-numbers 'relative)
+(setq ring-bell-function 'ignore)
+(setq display-line-numbers-type 'relative)
 
 ; Toggle modes
+(require 'ido-vertical-mode )
 (ido-mode 1)
+(ido-vertical-mode 1)
+(ido-everywhere 1)
 (tool-bar-mode -1)
 (toggle-scroll-bar -1)
 (menu-bar-mode -1)
 (global-display-line-numbers-mode 1)
 
 ; Install and load packages
-(require 'package)
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(require 'package)					
+(require 'use-package-ensure)
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+			  ("elpa" . "https://elpa.gnu.org/packages/")
+			  ("non-gnu" . "https://elpa.nongnu.org/nongnu/")))
+(when (not package-archive-contents)
+  (package-refresh-contents))
+
 (package-initialize)
 
-(require 'use-package-ensure)
 (setq use-package-always-ensure t)
 
 (use-package catppuccin-theme)
-(use-package magit)
-(use-package paredit)
+(use-package magit )
+(use-package paredit )
 
+; keyboard
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit) ;; Prevent me from confusion with VIM
 
 (use-package evil
   :init
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)
+  (setq evil-want-C-u-scroll t)
+  (setq evil-want-C-i-jump nil)
   :config
   (evil-mode 1)
+  (define-key evil-insert-state-map (kbd "C-n") 'evil-normal-state)
   )
 
 (use-package evil-collection
-  :pin melpa
   :after evil
   :config
   (evil-collection-init))
 
 (use-package all-the-icons)
 (use-package nerd-icons)
-  
-(use-package lsp-mode
-  :commands (lsp lsp-deferred)
-  :init
-  (setq lsp-keymap-prefix "C-c l")
+
+
+(use-package doom-modeline
+  :init (doom-modeline-mode 1)
   )
 
-(use-package lsp-ui
-  :after lsp-mode
-  :hook (lsp-mode . lsp-ui-mode)
-  :custom
-  (lsp-ui-doc-position 'bottom))
 
 (use-package fzf
   :bind
@@ -61,30 +68,57 @@
   (setq fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
 	fzf/executable "fzf"
 	fzf/git-grep-args "-i --line-number %s"
-	fzf/grep-command "grep -nrH"
+	fzf/grep-command "rg -nrH"
 	fzf/position-bottom t
-	fzf/window-height 15))
+	fzf/window-height 15) 'nowarnings )
+
+
+(use-package projectile)
+(projectile-mode +1)
+(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+
 
 (use-package consult
-  :bind
-  ;; Keybindings
   :hook (completion-list-mode . consult-preview-at-point-mode)
-  :init
-  (setq register-preview-delay 0.5)
-  (setq xref-show-xrefs-function #'consult-xref
-	xref-show-definitions-function #'consult-xref)) 
 
-(use-package magit-delta
-  :hook (magit-mode . magit-delta-mode)
   )
+(use-package consult-company)
+(use-package consult-flycheck)
+(use-package consult-lsp)
+(use-package consult-projectile)
 
+(use-package dap-mode)
+(use-package flycheck)
 
-; activate font and theme
+(use-package company)
+(use-package ivy)
+
+(require 'eglot)
+(add-to-list 'eglot-server-programs
+             '("gradle"
+               ("gradle" "--no-daemon" "tasks" "--quiet" "--info")
+               (mode . gradle-mode)
+               (file-mode . "java")
+               (file-types . ("java" "groovy"))))
+
+(use-package lsp-pyright
+  :custom (lsp-pyright-langserver-command "pyright")
+  :hook (python-mode . (lambda ()
+			 (lsp))))
+(use-package lsp-java
+  :config (add-hook 'java-mode-hook 'lsp))
+
+;; Set font
 (add-to-list 'default-frame-alist '(font .  "SF Mono"))
 (set-face-attribute 'default t :font "SF Mono")
+
+;; Load catppuccin theme
 (load-theme 'catppuccin :no-confirm)
 (setq catppuccin-flavor 'frappe)
+
+;; Create semi-transparent background
 (set-frame-parameter nil 'alpha-background 80)
 (add-to-list 'default-frame-alist '(alpha-background . 80))
 
-(load custom-file)
+(load custom-file 'noerror 'nomessage)
+(put 'dired-find-alternate-file 'disabled nil)
