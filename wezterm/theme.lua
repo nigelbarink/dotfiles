@@ -1,10 +1,16 @@
 local wezterm = require 'wezterm'
-config.window_decorations = "INTEGRATED_BUTTONS | TITLE | RESIZE"
 
 config.colors = { background = "#1e1e2e" }
 config.color_scheme = 'Catppuccin Mocha'
 config.window_background_opacity = 0.9
-config.window_decorations = "INTEGRATED_BUTTONS | TITLE | RESIZE"
+
+
+if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
+    config.window_decorations = "TITLE | RESIZE"
+else 
+    config.window_decorations = "INTEGRATED_BUTTONS | TITLE | RESIZE"
+end
+
 config.window_frame = {
     font = wezterm.font { family = 'Roboto', weight = 'Bold' },
     font_size = 12,
