@@ -1,0 +1,6 @@
+colorscheme retrobox
+set relativenumber number
+set packpath^=~/.vim/pack/
+set guioptions -=m
+set guioptions -=T
+set guicursor = "" 

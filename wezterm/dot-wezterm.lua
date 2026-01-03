@@ -1,68 +1,49 @@
 -- pull in the wezterm API
 local wezterm = require('wezterm')
-local launch_menu = {}
+config = wezterm.config_builder()
 
--- This will hold the configuration
-local config = wezterm.config_builder()
-config.colors = { background = "#1e1e2e" }
-config.color_scheme = 'Catppuccin Mocha'
-config.window_background_opacity = 0.8
+require "theme"
+require "keys"
 
-config.window_frame = {
-    font = wezterm.font { family = 'Roboto', weight = 'Bold' },
-    font_size = 12,
-    active_titlebar_bg = '#1e1e2e',
-    inactive_titlebar_bg = '#1e1e2e',
-}
-
-config.colors = {
-    tab_bar = {
-        active_tab = {
-
-            bg_color = '#181825',
-            fg_color = "#B4BEFE"
-        },
-        inactive_tab = {
-            bg_color = '#1e1e2e',
-            fg_color = "#CDD6F4"
-        },
-        new_tab = {
-            bg_color = '#1e1e2e',
-            fg_color = "#CDD6F4"
-        },
-        new_tab_hover = {
-            bg_color = '#1b1032',
-            fg_color = '#808080',
-        }
-    },
-}
-
--- Keys
-local act = wezterm.action
-config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 1000 }
-
-config.keys = {
-    { key = "s", mods = "LEADER", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
-    { key = "v", mods = "LEADER", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
-    { key = "h", mods = "LEADER", action = act.ActivatePaneDirection("Left") },
-    { key = "j", mods = "LEADER", action = act.ActivatePaneDirection("Down") },
-    { key = "k", mods = "LEADER", action = act.ActivatePaneDirection("Up") },
-    { key = "l", mods = "LEADER", action = act.ActivatePaneDirection("Right") },
-    { key = "q", mods = "LEADER", action = act.CloseCurrentPane { confirm = false } },
-    { key = "n", mods = "LEADER", action = act.ShowTabNavigator },
-    { key = "t", mods = "LEADER", action = act.ShowLauncher },
-}
 
 config.enable_tab_bar = false
-config.window_decorations = "INTEGRATED_BUTTONS | TITLE | RESIZE"
+-- The most common triples are:
+--
+-- x86_64-pc-windows-msvc - Windows
+-- x86_64-apple-darwin - macOS (Intel)
+-- aarch64-apple-darwin - macOS (Apple Silicon)
+-- x86_64-unknown-linux-gnu - Linux
+local launch_menu = {}
 if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
+    table.insert(launch_menu, {
+        label = 'PowerShell',
+        args = { 'PowerShell.exe', '-NoLogo' },
+    })
     table.insert(launch_menu, {
         label = 'PowerShell 7',
         args = { 'pwsh.exe', '-NoLogo' },
     })
     table.insert(launch_menu, {
-        label = 'PowerShell',
-        args = { 'PowerShell.exe', '-NoLogo' },
+        label = "Developer PowerShell",
+        args = {
+            'pwsh.exe',
+            '-noe',
+            '-c',
+            '&{Import-Module "C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/Tools/Microsoft.VisualStudio.DevShell.dll";Enter-VsDevShell 6c43edf9 };wezterm cli set-tab-title \'Developer Powershell\''
+        },
+        cwd = 'G:/git'
+    })
+
+
+    table.insert(launch_menu, {
+        label = "Conda PowerShell",
+        args = {
+            'pwsh.exe',
+            '-noe',
+            '-c',
+            '& \'C:/Users/nigel/miniconda3/shell/condabin/conda-hook.ps1\'; conda activate base '
+        },
+        cwd = 'G:/git/Machine Learning'
     })
 
     for _, vsvers in
@@ -78,5 +59,13 @@ if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
     end
 end
 
+if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
+    config.default_prog = { 'C:/Program Files/Powershell/7/pwsh.exe' }
+else
+    config.default_prog = { '/usr/bin/bash' }
+end
+
+
 config.launch_menu = launch_menu
+config.window_close_confirmation = "NeverPrompt"
 return config
