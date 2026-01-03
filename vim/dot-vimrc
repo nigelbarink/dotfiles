@@ -5,4 +5,8 @@ if has("gui_gnome") || has("gui_win32")
 	set guioptions -=m
 	set guioptions -=T
 endif
-set guicursor = "" 
+set guicursor = ""
+syntax on
+filetype on 
+filetype plugin on 
+filetype indent on 
