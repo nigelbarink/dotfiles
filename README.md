@@ -7,7 +7,7 @@
 ## Rice 
 
 ### Tokyo Night ( KDE with I3 ) 
-![TokyoNight Rice of Debian 12](DebianRice_TokyoNight_KDE_i3.png)
+![TokyoNight Rice of Debian 12](rice/DebianRice_TokyoNight_KDE_i3.png)
 
 Resources used:
 

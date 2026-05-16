@@ -1,0 +1,176 @@
+; Inhibit nasty emacs behaviour  
+(setq inhibit-splash-screen t)
+(setq make-backup-files nil)
+(tool-bar-mode -1)
+(toggle-scroll-bar -1)
+(menu-bar-mode -1)
+(setq custom-file "~/emacs-custom.el") ; Don't mess with my config
+(setq ring-bell-function 'ignore)
+(put 'dired-find-alternate-file 'disabled nil)
+
+
+; Set basic editor defaults
+(setq tab-width 4)
+(setq display-line-numbers-type 'relative)
+(global-display-line-numbers-mode 1)
+
+
+(use-package catppuccin-theme)
+
+; Enable and configure ido
+(setq ido-enable-flex-matching t)
+(setq ido-everywhere t)
+(ido-mode 1)
+(require 'ido-vertical-mode )
+(ido-vertical-mode 1)
+
+
+; Init Load-package plugin manager
+(require 'package)					
+(require 'use-package-ensure)
+(setq use-package-always-ensure t)
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+			  ("elpa" . "https://elpa.gnu.org/packages/")
+			  ("non-gnu" . "https://elpa.nongnu.org/nongnu/")))
+(when (not package-archive-contents)
+  (package-refresh-contents))
+(package-initialize)
+
+(use-package vertico
+  :init (vertico-mode))
+
+; Keys 
+(use-package evil
+  :init
+  (setq evil-want-integration t)
+  (setq evil-want-keybinding nil)
+  (setq evil-want-C-u-scroll t)
+  (setq evil-want-C-i-jump nil)
+  :config
+  (evil-mode 1)
+  (define-key evil-insert-state-map (kbd "C-n") 'evil-normal-state)
+  )
+
+(use-package evil-collection
+  :after evil
+  :config
+  (evil-collection-init))
+(evil-set-initial-state 'dired-mode 'emacs)
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit) ;; Prevent me from confusion with VIM
+
+; Fuzzy finder
+(use-package fzf
+  :bind
+  :config
+  (setq fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
+	fzf/executable "fzf"
+	fzf/git-grep-args "-i --line-number %s"
+	fzf/grep-command "rg -nrH"
+	fzf/position-bottom t
+	fzf/window-height 15) 'nowarnings )
+
+
+
+(use-package all-the-icons)
+(use-package nerd-icons)
+
+
+(use-package doom-modeline
+  :init (doom-modeline-mode 1)
+  )
+
+
+;; IDE Mode
+(use-package project)
+(use-package eglot)
+(use-package eldoc)
+(use-package flymake)
+(use-package flycheck)
+(use-package magit )
+(use-package paredit )
+(use-package tree-sitter)
+(use-package dap-mode)
+(use-package consult
+  :bind ; Keybindings
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+  :init
+  (setq register-preview-delay 0.5)
+  (setq xref-show-xrefs-function #'consult-xref
+	xref-show-definitions-function #'consult-xref))
+; set up code completion
+(use-package company)
+(global-company-mode)
+; Git
+(use-package magit)
+(use-package magit-delta
+  :hook (magit-mode . magit-delta-mode))
+
+; Language Server Configuration
+
+; Set up Java
+(add-to-list 'eglot-server-programs
+	     '(java-mode "jdtls" "--configuration" "~/.cache/jdtls"
+			 "--data" "~/.cache/jdtls-data"))
+(add-hook 'java-mode-hook 'eglot-ensure)
+
+; gradle build system
+(add-to-list 'eglot-server-programs
+             '("gradle"
+               ("gradle" "--no-daemon" "tasks" "--quiet" "--info")
+               (mode . gradle-mode)))
+
+; Set up CSharp
+(add-to-list 'eglot-server-programs
+	     '(csharp-mode . ("csharp-ls")))
+(add-hook 'csharp-mode-hook 'eglot-ensure)
+
+					; Set up Rust
+(add-to-list 'eglot-server-programs
+	     '(rust-mode . ("rust-analyzer")))
+(add-hook rust-mode-hook 'eglot-ensure)
+
+; Set up Python
+(use-package lsp-pyright
+  :custom (lsp-pyright-langserver-command "pyright")
+  :hook (python-mode . (lambda ()
+			 (lsp))))
+
+; Customize look and feel
+(add-to-list 'default-frame-alist '(font .  "SF Mono"))
+(add-to-list 'default-frame-alist '(font .  "Iosevka Nerd Font"))
+(set-face-attribute 'default t :font "SF Mono")
+
+(use-package material-theme)
+(use-package catppuccin-theme)
+(use-package all-the-icons)
+(use-package nerd-icons
+  :custom (nerd-icons-font-family "Symbols Nerd Font Mono")
+  )
+
+(use-package doom-modeline
+  :init (doom-modeline-mode 1)
+  :custom ((doom-modeline-height 15)
+	   (doom-modeline-icon-family 'nerd-icons)
+	   )
+  )
+;; Set the Catppuccin flavor
+(setq catppuccin-flavor 'frappe)
+(set-frame-parameter nil 'alpha-background 80)
+(add-to-list 'default-frame-alist '(alpha-background . 80))
+(load-theme 'catppuccin :no-confirm)
+
+;; Disable Catppuccin when running in a low-color Windows terminal
+(when (and (and (not (display-graphic-p))
+           (eq system-type 'windows-nt) 
+           (<= (display-color-cells) 16)))
+  (disable-theme 'catppuccin)
+  (message "Catppuccin disabled: low-color Windows terminal detected"))
+
+(add-to-list 'default-frame-alist '(alpha-background . 80))
+(load custom-file)
+
+;; Create semi-transparent background
+(set-frame-parameter nil 'alpha-background 80)
+(add-to-list 'default-frame-alist '(alpha-background . 80))
+
+(load custom-file 'noerror 'nomessage)

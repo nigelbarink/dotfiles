@@ -1,0 +1,4 @@
+if  command -v zoxide 
+then
+    eval "$(zoxide init bash --cmd cd)"
+fi
