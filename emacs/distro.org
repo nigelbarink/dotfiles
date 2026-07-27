@@ -1,0 +1,882 @@
+#+TITLE: My Emacs Configuration (Neovim-style IDE)
+#+AUTHOR: You
+#+PROPERTY: header-args:emacs-lisp :tangle yes :mkdirp yes
+#+STARTUP: content indent
+
+* Introduction
+
+This is a literate Emacs configuration aimed at people coming from Neovim.
+It provides:
+
+- Evil + leader key (SPC) with which-key
+- Vertico / Consult / Embark / Company (Telescope-like experience)
+- Easy language tooling via small =lisp/lang-*.el= files
+- Automatic Tree-sitter grammar installation
+- Format-on-save with Apheleia
+- DAP debugging support
+- Magit, Treemacs, vterm, Doom Modeline, Catppuccin, etc.
+- Full .NET / Critter Stack support with Docker Compose
+  (automatically uses both JetBrains Rider and Visual Studio override files)
+- Swappable package manager (package.el / straight.el / elpaca)
+- Doom-inspired startup & runtime performance optimisations
+
+Tangling this file produces:
+
+- =early-init.el=
+- =init.el=
+- =lisp/lang-python.el=
+- =lisp/lang-rust.el=
+- =lisp/lang-csharp.el=
+- =lisp/lang-java.el=
+- =lisp/lang-dotnet.el=
+
+* Package manager selection
+
+Change the value of =my/package-manager= to switch backends.
+Everything else in this config stays the same.
+
+Supported values:
+- =package=   → classic package.el (current default)
+- =straight=  → straight.el (faster, reproducible)
+- =elpaca=    → elpaca (modern async alternative)
+
+#+begin_src emacs-lisp :tangle init.el
+(defvar my/package-manager 'package
+  "Which package manager to use.
+Possible values: 'package, 'straight, 'elpaca.")
+#+end_src
+
+* Early init (Doom-inspired performance)
+
+This file is loaded *before* =init.el=. Most of the big startup wins live here.
+
+#+begin_src emacs-lisp :tangle early-init.el
+;;; early-init.el --- Early optimisations borrowed from Doom -*- lexical-binding: t; -*-
+
+;; 1. Garbage collection – the single biggest startup win
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
+
+;; 2. Prevent expensive frame resizing when fonts change
+(setq frame-inhibit-implied-resize t)
+
+;; 3. Disable UI elements as early as possible
+(push '(menu-bar-lines . 0) default-frame-alist)
+(push '(tool-bar-lines . 0) default-frame-alist)
+(push '(vertical-scroll-bars) default-frame-alist)
+
+;; 4. Silence the startup screen and message
+(setq inhibit-startup-screen t
+      inhibit-startup-echo-area-message user-login-name
+      inhibit-startup-buffer-menu t)
+
+;; 5. Native compilation settings (Emacs 28+)
+(when (and (fboundp 'native-comp-available-p)
+           (native-comp-available-p))
+  (setq native-comp-async-report-warnings-errors 'silent
+        native-comp-async-query-on-exit nil
+        native-comp-jit-compilation t))
+
+;; 6. Slightly faster file-name handling during startup
+(setq file-name-handler-alist nil)
+#+end_src
+
+* Early setup
+
+#+begin_src emacs-lisp :tangle init.el
+;;; init.el --- My Emacs config (Neovim-style IDE) -*- lexical-binding: t; -*-
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 1. Basic editor behaviour
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(setq inhibit-splash-screen t
+      make-backup-files nil
+      ring-bell-function 'ignore
+      custom-file (expand-file-name "emacs-custom.el" user-emacs-directory)
+      tab-width 4
+      display-line-numbers-type 'relative)
+
+(tool-bar-mode -1)
+(menu-bar-mode -1)
+(scroll-bar-mode -1)
+(global-display-line-numbers-mode 1)
+(global-auto-revert-mode 1)
+(electric-pair-mode 1)
+(show-paren-mode 1)
+
+(put 'dired-find-alternate-file 'disabled nil)
+(load custom-file 'noerror 'nomessage)
+
+;; Make sure our private lisp/ directory is on the load-path
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+#+end_src
+
+* Package management (swappable)
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 2. Package management (swappable)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(pcase my/package-manager
+
+  ;; ------------------------------------------------------------------
+  ;; Classic package.el
+  ;; ------------------------------------------------------------------
+  ('package
+   (require 'package)
+   (setq package-archives
+         '(("melpa"  . "https://melpa.org/packages/")
+           ("elpa"   . "https://elpa.gnu.org/packages/")
+           ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+   (package-initialize)
+   (unless package-archive-contents
+     (package-refresh-contents))
+
+   (unless (package-installed-p 'use-package)
+     (package-install 'use-package))
+   (require 'use-package)
+   (setq use-package-always-ensure t))
+
+  ;; ------------------------------------------------------------------
+  ;; straight.el (recommended faster alternative)
+  ;; ------------------------------------------------------------------
+  ('straight
+   (defvar bootstrap-version)
+   (let ((bootstrap-file
+          (expand-file-name
+           "straight/repos/straight.el/bootstrap.el"
+           (or (bound-and-true-p straight-base-dir)
+               user-emacs-directory)))
+         (bootstrap-version 7))
+     (unless (file-exists-p bootstrap-file)
+       (with-current-buffer
+           (url-retrieve-synchronously
+            "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+            'silent 'inhibit-cookies)
+         (goto-char (point-max))
+         (eval-print-last-sexp)))
+     (load bootstrap-file nil 'nomessage))
+
+   (straight-use-package 'use-package)
+   (setq straight-use-package-by-default t
+         use-package-always-ensure nil))
+
+  ;; ------------------------------------------------------------------
+  ;; elpaca (modern async alternative)
+  ;; ------------------------------------------------------------------
+  ('elpaca
+   (defvar elpaca-installer-version 0.11)
+   (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+   (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+   (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
+   (defvar elpaca-order
+     '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+              :ref nil :depth 1 :inherit nil
+              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+              :build (:not elpaca--activate-package)))
+   (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
+          (build (expand-file-name "elpaca/" elpaca-builds-directory))
+          (order (cdr elpaca-order))
+          (default-directory repo))
+     (add-to-list 'load-path (if (file-exists-p build) build repo))
+     (unless (file-exists-p repo)
+       (make-directory repo t)
+       (when (<= emacs-major-version 28) (require 'subr-x))
+       (condition-case-unless-debug err
+           (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+                     ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+                                                    ,@(when-let* ((depth (plist-get order :depth)))
+                                                        (list (format "--depth=%d" depth) "--no-single-branch"))
+                                                    ,(plist-get order :repo) ,repo))))
+                     ((zerop (call-process "git" nil buffer t "checkout"
+                                           (or (plist-get order :ref) "--"))))
+                     (emacs (concat invocation-directory invocation-name))
+                     ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+                                           "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+                     ((require 'elpaca))
+                     ((elpaca-generate-autoloads "elpaca" repo)))
+               (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+             (error "%s" (with-current-buffer buffer (buffer-string))))
+         ((error) (delete-directory repo 'recursive)
+                  (error "%s" (error-message-string err)))))
+     (unless (require 'elpaca-autoloads nil t)
+       (require 'elpaca)
+       (elpaca-generate-autoloads "elpaca" repo)
+       (load "./elpaca-autoloads")))
+   (add-hook 'after-init-hook #'elpaca-process-queues)
+   (elpaca `(,@elpaca-order))
+
+   (elpaca elpaca-use-package
+     (elpaca-use-package-mode)
+     (setq use-package-always-ensure t)))
+
+  (_ (error "Unknown package manager: %s" my/package-manager)))
+#+end_src
+
+* Startup & runtime performance (Doom-inspired)
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Performance – borrowed from Doom Emacs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Remember the original file-name-handler-alist so we can restore it
+(defvar my--file-name-handler-alist file-name-handler-alist)
+
+;; Restore a sane GC threshold after startup
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 32 1024 1024)  ; 32 MB
+                  gc-cons-percentage 0.1
+                  file-name-handler-alist
+                  (append (bound-and-true-p my--file-name-handler-alist)
+                          file-name-handler-alist))))
+
+;; gcmh – “Garbage Collector Magic Hack” (Doom uses this)
+(use-package gcmh
+  :demand t
+  :config
+  (setq gcmh-idle-delay 'auto
+        gcmh-auto-idle-delay-factor 10
+        gcmh-high-cons-threshold (* 64 1024 1024)) ; 64 MB
+  (gcmh-mode 1))
+
+;; Slightly nicer behaviour while the minibuffer is active
+(defun my/defer-gc-during-minibuffer ()
+  (setq gc-cons-threshold most-positive-fixnum))
+(defun my/restore-gc-after-minibuffer ()
+  (run-at-time 1 nil
+               (lambda () (setq gc-cons-threshold (* 32 1024 1024)))))
+(add-hook 'minibuffer-setup-hook #'my/defer-gc-during-minibuffer)
+(add-hook 'minibuffer-exit-hook  #'my/restore-gc-after-minibuffer)
+
+;; Prefer fundamental-mode for the initial scratch buffer
+(setq initial-major-mode 'fundamental-mode)
+
+;; Don’t do expensive mode-line / font work until needed
+(setq inhibit-compacting-font-caches t)
+
+;; Faster redisplay on some systems
+(setq redisplay-skip-fontification-on-input t)
+#+end_src
+
+* Evil (modal editing)
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 3. Evil
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package evil
+  :init
+  (setq evil-want-integration t
+        evil-want-keybinding nil
+        evil-want-C-u-scroll t
+        evil-want-C-i-jump nil
+        evil-undo-system 'undo-redo)
+  :config
+  (evil-mode 1)
+  (define-key evil-insert-state-map (kbd "C-n") 'evil-normal-state)
+  (define-key evil-insert-state-map (kbd "C-g") 'evil-normal-state))
+
+(use-package evil-collection
+  :after evil
+  :config (evil-collection-init))
+
+;;(evil-set-initial-state 'dired-mode 'emacs)
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+#+end_src
+
+* Leader key + which-key
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 4. Leader key + which-key
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package general
+  :config
+  (general-create-definer my/leader
+    :states '(normal visual insert emacs)
+    :prefix "SPC"
+    :non-normal-prefix "M-SPC")
+
+  (general-create-definer my/local-leader
+    :states '(normal visual)
+    :prefix ","))
+
+(use-package which-key
+  :init (which-key-mode)
+  :config (setq which-key-idle-delay 0.4))
+#+end_src
+
+* Completion & fuzzy finding (Telescope-like)
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 5. Completion & fuzzy finding
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package vertico
+  :init (vertico-mode)
+  :config (setq vertico-cycle t))
+
+(use-package orderless
+  :init
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles partial-completion)))))
+
+(use-package consult
+  :bind (("C-s"     . consult-line)
+         ("C-x b"   . consult-buffer)
+         ("C-x 4 b" . consult-buffer-other-window)
+         ("M-y"     . consult-yank-pop)
+         ("M-g g"   . consult-goto-line)
+         ("M-g i"   . consult-imenu)
+         ("M-s r"   . consult-ripgrep)
+         ("M-s f"   . consult-find))
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+  :init
+  (setq register-preview-delay 0.5
+        xref-show-xrefs-function       #'consult-xref
+        xref-show-definitions-function #'consult-xref))
+
+(use-package embark
+  :bind (("C-."   . embark-act)
+         ("C-;"   . embark-dwim)
+         ("C-h B" . embark-bindings))
+  :init (setq prefix-help-command #'embark-prefix-help-command))
+
+(use-package embark-consult
+  :after (embark consult)
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
+
+(use-package company
+  :init (global-company-mode)
+  :config
+  (setq company-idle-delay 0.1
+        company-minimum-prefix-length 1
+        company-tooltip-align-annotations t))
+#+end_src
+
+* Project management & leader keymaps
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 6. Project management & leader keymaps
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package project)
+
+(my/leader
+  ""     '(nil :which-key "leader")
+  "SPC"  'execute-extended-command
+  ":"    'eval-expression
+
+  "f"    '(:ignore t :which-key "files")
+  "ff"   'find-file
+  "fr"   'consult-recent-file
+  "fs"   'save-buffer
+  "fS"   'write-file
+
+  "b"    '(:ignore t :which-key "buffers")
+  "bb"   'consult-buffer
+  "bd"   'kill-current-buffer
+  "bn"   'next-buffer
+  "bp"   'previous-buffer
+  "bB"   'ibuffer
+
+  "s"    '(:ignore t :which-key "search")
+  "ss"   'consult-line
+  "sp"   'consult-ripgrep
+  "sf"   'consult-find
+  "si"   'consult-imenu
+  "sI"   'consult-imenu-multi
+
+  "p"    '(:ignore t :which-key "project")
+  "pp"   'project-switch-project
+  "pf"   'project-find-file
+  "pb"   'project-switch-to-buffer
+  "ps"   'consult-ripgrep
+  "pc"   'project-compile
+  "p!"   'project-shell
+
+  "w"    '(:ignore t :which-key "windows")
+  "ww"   'other-window
+  "wd"   'delete-window
+  "w/"   'split-window-right
+  "w-"   'split-window-below
+  "wm"   'delete-other-windows
+
+  "g"    '(:ignore t :which-key "git")
+  "gg"   'magit-status
+  "gb"   'magit-blame
+  "gl"   'magit-log-current
+
+  "c"    '(:ignore t :which-key "code")
+  "ca"   'eglot-code-actions
+  "cr"   'eglot-rename
+  "cf"   'eglot-format
+  "cd"   'xref-find-definitions
+  "cD"   'xref-find-references
+  "ch"   'eldoc-doc-buffer
+  "ce"   'flymake-show-buffer-diagnostics
+  "cF"   'apheleia-format-buffer
+  "c d"  'dap-debug
+
+  "o"    '(:ignore t :which-key "open")
+  "ot"   'vterm
+  "op"   'treemacs
+  "od"   'dired
+
+  "t"    '(:ignore t :which-key "toggles")
+  "tn"   'display-line-numbers-mode
+  "tt"   'toggle-truncate-lines
+  "tf"   'apheleia-mode)
+#+end_src
+
+* UI – Treemacs, vterm, modeline, icons
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 7. File tree, terminal, modeline, icons
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package treemacs
+  :defer t
+  :config (setq treemacs-width 30))
+
+(use-package treemacs-evil
+  :after (treemacs evil))
+
+(use-package treemacs-magit
+  :after (treemacs magit))
+
+(use-package vterm
+  :defer t)
+
+(use-package all-the-icons
+  :if (display-graphic-p))
+
+(use-package nerd-icons
+  :custom (nerd-icons-font-family "Symbols Nerd Font Mono"))
+
+(use-package doom-modeline
+  :init (doom-modeline-mode 1)
+  :custom
+  (doom-modeline-height 25)
+  (doom-modeline-icon t))
+#+end_src
+
+* Core language tooling (Eglot + Tree-sitter helper)
+
+#+begin_src emacs-lisp :tangle init.el
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 8. Core language tooling (Eglot + Tree-sitter + helper)
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  (use-package eglot
+    :ensure nil
+    :commands (eglot eglot-ensure)
+    :custom
+    (eglot-autoshutdown t)
+    (eglot-sync-connect nil)
+    (eglot-extend-to-xref t)
+    (eglot-send-changes-idle-time 0.3)
+    :config
+    (add-hook 'eglot-managed-mode-hook #'eglot-inlay-hints-mode))
+
+  ;; Shared helper – used by every lang-*.el file
+  (cl-defun my/eglot-lang (modes &key server hook extra)
+    "Register language(s) with Eglot the easy way."
+    (let ((modes (if (listp modes) modes (list modes))))
+      (dolist (mode modes)
+        (when server
+          (with-eval-after-load 'eglot
+  	  (add-to-list 'eglot-server-programs (cons mode server)))
+  	)
+        (add-hook (intern (format "%s-hook" mode)) #'eglot-ensure)
+        (when hook
+          (dolist (fn (if (listp hook) hook (list hook)))
+            (add-hook (intern (format "%s-hook" mode)) fn))))
+      (when extra (eval extra))))
+
+  ;;;; Tree-sitter auto-install
+  (use-package treesit
+    :ensure nil
+    :config
+    (setq treesit-font-lock-level 4)
+
+    (setq major-mode-remap-alist
+          '((python-mode     . python-ts-mode)
+            (rust-mode       . rust-ts-mode)
+            (csharp-mode     . csharp-ts-mode)
+            (java-mode       . java-ts-mode)
+            (js-mode         . js-ts-mode)
+            (typescript-mode . typescript-ts-mode)
+            (go-mode         . go-ts-mode)
+            (c-mode          . c-ts-mode)
+            (c++-mode        . c++-ts-mode)))
+
+    (defvar my/treesit-languages
+      '(python rust java c csharp javascript typescript go json html css)
+      "Tree-sitter languages to auto-install.")
+
+    (defun my/treesit-install-missing (&optional force)
+      "Install any missing Tree-sitter grammars."
+      (interactive "P")
+      (dolist (lang my/treesit-languages)
+        (condition-case err
+            (if (or force (not (treesit-language-available-p lang)))
+                (progn
+                  (message "Installing Tree-sitter grammar: %s" lang)
+                  (treesit-install-language-grammar lang)
+                  (message "✓ Installed %s" lang))
+              (message "✓ %s already available" lang))
+          (error (message "✗ Failed to install %s: %s" lang err)))))
+
+    (run-with-idle-timer 2 nil #'my/treesit-install-missing))
+
+  (use-package consult-eglot
+    :after (consult eglot)
+    :bind (:map eglot-mode-map
+                ("C-c C-s" . consult-eglot-symbols)))
+#+end_src
+
+* Enable languages (the Doom-like part)
+
+Just comment / uncomment a =require= to enable or disable a language.
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 9. Enable languages
+;;;    Comment / uncomment to enable / disable
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require 'lang-python)
+;;(require 'lang-rust)
+;;(require 'lang-csharp)
+;;(require 'lang-java)
+;;(require 'lang-dotnet)
+
+;; (require 'lang-go)
+;; (require 'lang-typescript)
+#+end_src
+
+* Language modules
+
+** Python
+
+#+begin_src emacs-lisp :tangle lisp/lang-python.el
+;;; lang-python.el --- Python support -*- lexical-binding: t; -*-
+
+(my/eglot-lang '(python-mode python-ts-mode)
+               :server '("pyright-langserver" "--stdio"))
+
+(provide 'lang-python)
+;;; lang-python.el ends here
+#+end_src
+
+** Rust
+
+#+begin_src emacs-lisp :tangle lisp/lang-rust.el
+;;; lang-rust.el --- Rust support -*- lexical-binding: t; -*-
+
+(my/eglot-lang '(rust-mode rust-ts-mode)
+               :server '("rust-analyzer"))
+
+(provide 'lang-rust)
+;;; lang-rust.el ends here
+#+end_src
+
+** C#
+
+#+begin_src emacs-lisp :tangle lisp/lang-csharp.el
+;;; lang-csharp.el --- C# support -*- lexical-binding: t; -*-
+
+(my/eglot-lang 'csharp-mode
+               :server '("csharp-ls"))
+
+(provide 'lang-csharp)
+;;; lang-csharp.el ends here
+#+end_src
+
+** Java
+
+#+begin_src emacs-lisp :tangle lisp/lang-java.el
+;;; lang-java.el --- Java support -*- lexical-binding: t; -*-
+
+(my/eglot-lang 'java-mode
+               :server '("jdtls"
+                         "--configuration" "\~/.cache/jdtls"
+                         "--data"         "\~/.cache/jdtls-data"))
+
+(provide 'lang-java)
+;;; lang-java.el ends here
+#+end_src
+
+** .NET / Critter Stack (Docker Compose + Rider & Visual Studio overrides)
+
+#+begin_src emacs-lisp :tangle lisp/lang-dotnet.el
+;;; lang-dotnet.el --- .NET / Critter Stack + Docker Compose (Rider + VS) -*- lexical-binding: t; -*-
+
+(require 'cl-lib)
+
+;;;; 1. C# language server
+(my/eglot-lang '(csharp-mode csharp-ts-mode)
+               :server '("csharp-ls"))
+
+(add-to-list 'major-mode-remap-alist '(csharp-mode . csharp-ts-mode))
+
+;;;; 2. Docker packages
+(use-package docker
+  :defer t
+  :commands (docker docker-compose))
+
+(use-package docker-compose-mode
+  :mode ("docker-compose\\.ya?ml\\'" . docker-compose-mode)
+  :mode ("compose\\.ya?ml\\'" . docker-compose-mode))
+
+;;;; 3. Smart Compose file discovery (Rider + Visual Studio)
+(defun my/dotnet--compose-files ()
+  "Return docker-compose files supporting both Rider and Visual Studio conventions."
+  (let* ((root (or (project-root (project-current t)) default-directory))
+         (candidates
+          (list
+           (expand-file-name "docker-compose.yml" root)
+           (expand-file-name "compose.yml" root)
+           (expand-file-name "docker-compose.override.yml" root)
+           (expand-file-name "compose.override.yml" root)
+           (expand-file-name "docker-compose.vs.debug.yml" root)
+           (expand-file-name "docker-compose.vs.release.yml" root)
+           (expand-file-name "obj/Docker/docker-compose.vs.debug.g.yml" root)
+           (expand-file-name "obj/Docker/docker-compose.vs.release.g.yml" root)
+           (expand-file-name "obj/Docker/docker-compose.vs.debug.yml" root)
+           (expand-file-name "docker-compose.generated.override.yml" root)
+           (expand-file-name "docker-compose.generated.override.yml"
+                             (expand-file-name ".idea" root))))
+         (existing (cl-remove-if-not #'file-exists-p candidates)))
+    (unless existing
+      (user-error "No docker-compose.yml / compose.yml found in %s" root))
+    existing))
+
+(defun my/dotnet--compose-command (&rest args)
+  "Build a docker compose command that includes all detected override files."
+  (let* ((files (my/dotnet--compose-files))
+         (file-args (mapcan (lambda (f) (list "-f" (shell-quote-argument f))) files)))
+    (mapconcat #'identity (append '("docker" "compose") file-args args) " ")))
+
+;;;; 4. Compose helpers
+(defun my/dotnet-compose-up ()
+  "Start the stack using Rider + Visual Studio compatible compose files."
+  (interactive)
+  (let ((cmd (my/dotnet--compose-command "up" "-d" "--build")))
+    (message "Running: %s" cmd)
+    (compile cmd)))
+
+(defun my/dotnet-compose-down ()
+  (interactive)
+  (compile (my/dotnet--compose-command "down")))
+
+(defun my/dotnet-compose-logs ()
+  (interactive)
+  (async-shell-command (my/dotnet--compose-command "logs" "-f" "--tail=200")
+                       "*docker-compose-logs*"))
+
+(defun my/dotnet-compose-ps ()
+  (interactive)
+  (async-shell-command (my/dotnet--compose-command "ps")
+                       "*docker-compose-ps*"))
+
+;;;; 5. Debugging – attach to process inside Docker
+(require 'dap-mode)
+(require 'dap-netcore)
+
+(defun my/dotnet-docker-attach (service &optional container-path)
+  "Attach the .NET debugger to a running Docker Compose SERVICE."
+  (interactive
+   (list (read-string "Compose service name: ")
+         (read-string "Path inside container (default /app): " nil nil "/app")))
+  (let* ((container (my/dotnet--service-container service))
+         (pid       (my/dotnet--dotnet-pid-in-container container))
+         (local-root (project-root (project-current t))))
+    (unless container (user-error "No running container for service '%s'" service))
+    (unless pid (user-error "No 'dotnet' process found inside container %s" container))
+    (dap-debug
+     (list :type "coreclr"
+           :request "attach"
+           :name (format "Docker • %s (pid %s)" service pid)
+           :processId pid
+           :pipeTransport
+           (list :pipeCwd local-root
+                 :pipeProgram "docker"
+                 :pipeArgs (list "exec" "-i" container "sh" "-c")
+                 :debuggerPath "netcoredbg"
+                 :quoteArgs t)
+           :sourceFileMap (list (cons container-path local-root))))))
+
+(defun my/dotnet--service-container (service)
+  (string-trim (shell-command-to-string (format "docker compose ps -q %s" service))))
+
+(defun my/dotnet--dotnet-pid-in-container (container)
+  (string-trim
+   (shell-command-to-string
+    (format "docker exec %s sh -c 'pidof -s dotnet || pgrep -o dotnet'" container))))
+
+;;;; 6. Debug templates
+(dap-register-debug-template
+" .NET • Launch (local)"
+(list :type "coreclr" :request "launch" :name ".NET Launch (local)"
+       :program "${workspaceFolder}/bin/Debug/net8.0/YourApp.dll"
+       :cwd "${workspaceFolder}" :stopAtEntry nil
+       :env '(("ASPNETCORE_ENVIRONMENT" . "Development"))))
+
+(dap-register-debug-template
+" .NET • Attach (local process)"
+(list :type "coreclr" :request "attach" :name ".NET Attach (local)"
+       :processId "${command:pickProcess}"))
+
+;;;; 7. Leader keys
+(with-eval-after-load 'general
+  (my/leader
+    "o d"   '(:ignore t :which-key "dotnet / docker")
+    "o d u" 'my/dotnet-compose-up
+    "o d d" 'my/dotnet-compose-down
+    "o d l" 'my/dotnet-compose-logs
+    "o d p" 'my/dotnet-compose-ps
+    "o d a" 'my/dotnet-docker-attach
+    "c d"   'dap-debug
+    "c D"   'dap-disconnect
+    "c b"   'dap-breakpoint-toggle
+    "c n"   'dap-next
+    "c i"   'dap-step-in
+    "c o"   'dap-step-out
+    "c c"   'dap-continue))
+
+(provide 'lang-dotnet)
+;;; lang-dotnet.el ends here
+#+end_src
+
+* Auto-formatting (Apheleia)
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 10. Auto-formatting (Apheleia)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package apheleia
+  :init (apheleia-global-mode +1)
+  :config
+  (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
+  (setf (alist-get 'python-ts-mode apheleia-mode-alist) 'ruff)
+  (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
+  (setf (alist-get 'rust-ts-mode apheleia-mode-alist) 'rustfmt))
+#+end_src
+
+* Debugging (DAP)
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 11. Debugging (DAP)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package dap-mode
+  :defer t
+  :config
+  (dap-auto-configure-mode)
+  (require 'dap-ui)
+  (dap-ui-mode 1)
+  (dap-ui-controls-mode 1))
+#+end_src
+
+* Git
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 12. Git
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package magit
+  :bind ("C-x g" . magit-status))
+
+(use-package magit-delta
+  :hook (magit-mode . magit-delta-mode))
+#+end_src
+
+* Other tools
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 13. Other tools
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package paredit
+  :hook ((emacs-lisp-mode lisp-mode) . paredit-mode))
+#+end_src
+
+* Theme, font & transparency
+
+#+begin_src emacs-lisp :tangle init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 14. Theme, font, transparency
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package catppuccin-theme
+  :config
+  (setq catppuccin-flavor 'frappe)
+  (load-theme 'catppuccin :no-confirm))
+
+(set-face-attribute 'default nil
+                    :font "Iosevka Nerd Font"
+                    :height 120)
+
+(set-frame-parameter nil 'alpha-background 90)
+(add-to-list 'default-frame-alist '(alpha-background . 90))
+
+(when (and (not (display-graphic-p))
+           (eq system-type 'windows-nt)
+           (<= (display-color-cells) 16))
+  (disable-theme 'catppuccin))
+#+end_src
+
+* How to use this file
+
+1. Save this buffer as =\~/.emacs.d/config.org=
+2. Run =M-x org-babel-tangle= (or =C-c C-v t=)
+3. This creates/updates:
+   - =early-init.el=
+   - =init.el=
+   - =lisp/lang-*.el=
+4. Restart Emacs
+
+**Switching package manager later**
+
+Just change one line near the top:
+
+#+begin_src emacs-lisp
+(defvar my/package-manager 'straight)   ; ← change to 'straight or 'elpaca
+#+end_src
+
+Then tangle + restart Emacs.
+
+**Key bindings summary**
+
+| Key        | Action                                      |
+|------------|---------------------------------------------|
+| =SPC=      | Leader (which-key appears)                  |
+| =SPC o d u=| Docker Compose up (Rider + VS overrides)    |
+| =SPC o d d=| Docker Compose down                         |
+| =SPC o d l=| Docker Compose logs                         |
+| =SPC o d a=| Attach .NET debugger to a Compose service   |
+| =SPC c d=  | Start DAP debug session                     |
+| =SPC c b=  | Toggle breakpoint                           |
+| =SPC g g=  | Magit status                                |
+| =SPC p f=  | Project find file                           |
+| =SPC s p=  | Live grep in project                       
+
+
+
+
