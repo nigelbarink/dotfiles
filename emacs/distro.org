@@ -17,6 +17,7 @@ It provides:
 - Magit, Treemacs, vterm, Doom Modeline, Catppuccin, etc.
 - Full .NET / Critter Stack support with Docker Compose
   (automatically uses both JetBrains Rider and Visual Studio override files)
+- Go, Typescript/Javascript, and Svelte support 
 - Swappable package manager (package.el / straight.el / elpaca)
 - Doom-inspired startup & runtime performance optimisations
 
@@ -29,7 +30,22 @@ Tangling this file produces:
 - =lisp/lang-csharp.el=
 - =lisp/lang-java.el=
 - =lisp/lang-dotnet.el=
+- =lisp/lang-go.el=
+- =lisp/lang-typescript.el=
+- =lisp/lang-svelte.el=
+  
+* silly Microsoft Windows fixes
+#+BEGIN_SRC emacs-lisp :tangle init.el
 
+(when (eq system-type 'windows-nt)
+  (dolist (dir '("C:/Program Files/Git/bin"
+                 "C:/Program Files/Git/cmd"
+                 "C:/Program Files (x86)/Git/bin"))
+    (when (file-directory-p dir)
+      (add-to-list 'exec-path dir)))
+  (setenv "PATH" (string-join exec-path path-separator)))
+  
+#+END_SRC
 * Package manager selection
 
 Change the value of =my/package-manager= to switch backends.
@@ -115,104 +131,105 @@ This file is loaded *before* =init.el=. Most of the big startup wins live here.
 * Package management (swappable)
 
 #+begin_src emacs-lisp :tangle init.el
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; 2. Package management (swappable)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 2. Package management (swappable)
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(pcase my/package-manager
+  (pcase my/package-manager
 
-  ;; ------------------------------------------------------------------
-  ;; Classic package.el
-  ;; ------------------------------------------------------------------
-  ('package
-   (require 'package)
-   (setq package-archives
-         '(("melpa"  . "https://melpa.org/packages/")
-           ("elpa"   . "https://elpa.gnu.org/packages/")
-           ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
-   (package-initialize)
-   (unless package-archive-contents
-     (package-refresh-contents))
+    ;; ------------------------------------------------------------------
+    ;; Classic package.el
+    ;; ------------------------------------------------------------------
+    ('package
+     (require 'package)
+     (setq package-archives
+           '(("melpa"  . "https://melpa.org/packages/")
+  	   ("melpa-stable" . "https://stable.melpa.org/packages/")
+             ("elpa"   . "https://elpa.gnu.org/packages/")
+             ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+     (package-initialize)
+     (unless package-archive-contents
+       (package-refresh-contents))
 
-   (unless (package-installed-p 'use-package)
-     (package-install 'use-package))
-   (require 'use-package)
-   (setq use-package-always-ensure t))
+     (unless (package-installed-p 'use-package)
+       (package-install 'use-package))
+     (require 'use-package)
+     (setq use-package-always-ensure t))
 
-  ;; ------------------------------------------------------------------
-  ;; straight.el (recommended faster alternative)
-  ;; ------------------------------------------------------------------
-  ('straight
-   (defvar bootstrap-version)
-   (let ((bootstrap-file
-          (expand-file-name
-           "straight/repos/straight.el/bootstrap.el"
-           (or (bound-and-true-p straight-base-dir)
-               user-emacs-directory)))
-         (bootstrap-version 7))
-     (unless (file-exists-p bootstrap-file)
-       (with-current-buffer
-           (url-retrieve-synchronously
-            "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-            'silent 'inhibit-cookies)
-         (goto-char (point-max))
-         (eval-print-last-sexp)))
-     (load bootstrap-file nil 'nomessage))
+    ;; ------------------------------------------------------------------
+    ;; straight.el (recommended faster alternative)
+    ;; ------------------------------------------------------------------
+    ('straight
+     (defvar bootstrap-version)
+     (let ((bootstrap-file
+            (expand-file-name
+             "straight/repos/straight.el/bootstrap.el"
+             (or (bound-and-true-p straight-base-dir)
+                 user-emacs-directory)))
+           (bootstrap-version 7))
+       (unless (file-exists-p bootstrap-file)
+         (with-current-buffer
+             (url-retrieve-synchronously
+              "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+              'silent 'inhibit-cookies)
+           (goto-char (point-max))
+           (eval-print-last-sexp)))
+       (load bootstrap-file nil 'nomessage))
 
-   (straight-use-package 'use-package)
-   (setq straight-use-package-by-default t
-         use-package-always-ensure nil))
+     (straight-use-package 'use-package)
+     (setq straight-use-package-by-default t
+           use-package-always-ensure nil))
 
-  ;; ------------------------------------------------------------------
-  ;; elpaca (modern async alternative)
-  ;; ------------------------------------------------------------------
-  ('elpaca
-   (defvar elpaca-installer-version 0.11)
-   (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
-   (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
-   (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
-   (defvar elpaca-order
-     '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-              :ref nil :depth 1 :inherit nil
-              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
-              :build (:not elpaca--activate-package)))
-   (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
-          (build (expand-file-name "elpaca/" elpaca-builds-directory))
-          (order (cdr elpaca-order))
-          (default-directory repo))
-     (add-to-list 'load-path (if (file-exists-p build) build repo))
-     (unless (file-exists-p repo)
-       (make-directory repo t)
-       (when (<= emacs-major-version 28) (require 'subr-x))
-       (condition-case-unless-debug err
-           (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
-                     ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
-                                                    ,@(when-let* ((depth (plist-get order :depth)))
-                                                        (list (format "--depth=%d" depth) "--no-single-branch"))
-                                                    ,(plist-get order :repo) ,repo))))
-                     ((zerop (call-process "git" nil buffer t "checkout"
-                                           (or (plist-get order :ref) "--"))))
-                     (emacs (concat invocation-directory invocation-name))
-                     ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-                                           "--eval" "(byte-recompile-directory \".\" 0 'force)")))
-                     ((require 'elpaca))
-                     ((elpaca-generate-autoloads "elpaca" repo)))
-               (progn (message "%s" (buffer-string)) (kill-buffer buffer))
-             (error "%s" (with-current-buffer buffer (buffer-string))))
-         ((error) (delete-directory repo 'recursive)
-                  (error "%s" (error-message-string err)))))
-     (unless (require 'elpaca-autoloads nil t)
-       (require 'elpaca)
-       (elpaca-generate-autoloads "elpaca" repo)
-       (load "./elpaca-autoloads")))
-   (add-hook 'after-init-hook #'elpaca-process-queues)
-   (elpaca `(,@elpaca-order))
+    ;; ------------------------------------------------------------------
+    ;; elpaca (modern async alternative)
+    ;; ------------------------------------------------------------------
+    ('elpaca
+     (defvar elpaca-installer-version 0.11)
+     (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+     (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+     (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
+     (defvar elpaca-order
+       '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+                :ref nil :depth 1 :inherit nil
+                :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+                :build (:not elpaca--activate-package)))
+     (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
+            (build (expand-file-name "elpaca/" elpaca-builds-directory))
+            (order (cdr elpaca-order))
+            (default-directory repo))
+       (add-to-list 'load-path (if (file-exists-p build) build repo))
+       (unless (file-exists-p repo)
+         (make-directory repo t)
+         (when (<= emacs-major-version 28) (require 'subr-x))
+         (condition-case-unless-debug err
+             (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+                       ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+                                                      ,@(when-let* ((depth (plist-get order :depth)))
+                                                          (list (format "--depth=%d" depth) "--no-single-branch"))
+                                                      ,(plist-get order :repo) ,repo))))
+                       ((zerop (call-process "git" nil buffer t "checkout"
+                                             (or (plist-get order :ref) "--"))))
+                       (emacs (concat invocation-directory invocation-name))
+                       ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+                                             "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+                       ((require 'elpaca))
+                       ((elpaca-generate-autoloads "elpaca" repo)))
+                 (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+               (error "%s" (with-current-buffer buffer (buffer-string))))
+           ((error) (delete-directory repo 'recursive)
+                    (error "%s" (error-message-string err)))))
+       (unless (require 'elpaca-autoloads nil t)
+         (require 'elpaca)
+         (elpaca-generate-autoloads "elpaca" repo)
+         (load "./elpaca-autoloads")))
+     (add-hook 'after-init-hook #'elpaca-process-queues)
+     (elpaca `(,@elpaca-order))
 
-   (elpaca elpaca-use-package
-     (elpaca-use-package-mode)
-     (setq use-package-always-ensure t)))
+     (elpaca elpaca-use-package
+       (elpaca-use-package-mode)
+       (setq use-package-always-ensure t)))
 
-  (_ (error "Unknown package manager: %s" my/package-manager)))
+    (_ (error "Unknown package manager: %s" my/package-manager)))
 #+end_src
 
 * Startup & runtime performance (Doom-inspired)
@@ -361,7 +378,85 @@ This file is loaded *before* =init.el=. Most of the big startup wins live here.
         company-minimum-prefix-length 1
         company-tooltip-align-annotations t))
 #+end_src
+* Copilot
+#+BEGIN_SRC emacs-lisp :tangle init.el
+    (require 'project)
 
+    (cl-defgeneric my/project-root (project)
+      "Generic fallback project root extractor."
+      (project-root project))
+
+    (cl-defmethod my/project-root ((project (head vc)))
+      "Handle VC projects whose structure breaks copilot.el."
+      (let ((dir (cdr project)))
+        (if (stringp dir)
+            dir
+          (format "%s" dir))))
+
+    ;; Override copilot’s use of project-root
+    (advice-add 'project-root :around
+                (lambda (orig project)
+                  (condition-case _
+                      (funcall orig project)
+                    (error (my/project-root project)))))
+;;;  (use-package gptel)
+;;;  (require 'gptel)
+;;;  (setq gptel-backend
+;;;        (gptel-make-openai "llama.cpp"
+;;;          :host "localhost:8080"
+;;;          :endpoint "/v1/chat/completions"
+;;;          :key "none"))
+;;;  (add-hook 'prog-mode-hook #'gptel-complete-mode)
+;;;
+;;;  ;; Bind keys only after the mode loads
+;;;  (add-hook 'gptel-inline-mode-hook
+;;;            (lambda ()
+;;;              (define-key gptel-inline-mode-map (kbd "TAB") #'gptel-complete-accept)
+;;;              (define-key gptel-inline-mode-map (kbd "C-n") #'gptel-next)
+;;;              (define-key gptel-inline-mode-map (kbd "C-p") #'gptel-prev)))
+;;;
+;;;  ;; Prevent llama.cpp output-limit crashes
+;;;  (setq gptel-max-tokens 256)
+
+      ;; (use-package copilot
+        ;; :ensure t
+        ;; :config
+        ;; ;; Local llama.cpp server (OpenAI-compatible)
+        ;; (setq copilot--network-endpoint "http://localhost:8080/v1/chat/completions")
+        ;; (setq copilot--model "local")
+    ;; 
+        ;; ;; Improve completion quality for coder models
+        ;; (setq copilot--system-prompt
+              ;; "You are a coding assistant. Provide concise, high-quality code completions.
+      ;; Focus on the user's current buffer context. Avoid long explanations.")
+    ;; 
+        ;; ;; Enable Copilot automatically in programming buffers
+        ;; (add-hook 'prog-mode-hook #'copilot-mode)
+    ;; 
+        ;; ;; Keybindings for a smooth workflow
+        ;; (define-key copilot-mode-map (kbd "C-<tab>") #'copilot-accept-completion)
+        ;; (define-key copilot-mode-map (kbd "C-c C-c") #'copilot-clear-overlay)
+       ;;  
+        ;; ;; Optional: fallback when no completion is available
+        ;; (defun my/copilot-or-company ()
+          ;; (interactive)
+          ;; (or (copilot-accept-completion)
+              ;; (company-complete)))
+        ;; (define-key copilot-mode-map (kbd "C-<return>") #'my/copilot-or-company)
+    ;; 
+        ;; ;; Optional: language-aware tweaks
+        ;; (setq copilot-major-mode-alist
+              ;; '( (javascript-mode     . "javascript")
+                ;; (typescript-mode . "typescript")
+                ;; (rust-mode   . "rust")
+                ;; (go-mode     . "go")
+                ;; (emacs-lisp-mode . "elisp")))
+    ;; 
+        ;; ;; Optional: shorter completions for tight coding loops
+        ;; (setq copilot-max-char 2000))
+
+
+#+END_SRC
 * Project management & leader keymaps
 
 #+begin_src emacs-lisp :tangle init.el
@@ -474,76 +569,101 @@ This file is loaded *before* =init.el=. Most of the big startup wins live here.
 * Core language tooling (Eglot + Tree-sitter helper)
 
 #+begin_src emacs-lisp :tangle init.el
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;; 8. Core language tooling (Eglot + Tree-sitter + helper)
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 8. Core language tooling (Eglot + Tree-sitter + helper)
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (use-package eglot
-    :ensure nil
-    :commands (eglot eglot-ensure)
-    :custom
-    (eglot-autoshutdown t)
-    (eglot-sync-connect nil)
-    (eglot-extend-to-xref t)
-    (eglot-send-changes-idle-time 0.3)
-    :config
-    (add-hook 'eglot-managed-mode-hook #'eglot-inlay-hints-mode))
+    (use-package eglot
+      :ensure nil
+      :commands (eglot eglot-ensure)
+      :custom
+      (eglot-autoshutdown t)
+      (eglot-sync-connect nil)
+      (eglot-extend-to-xref t)
+      (eglot-send-changes-idle-time 0.3)
+      :config
+      (add-hook 'eglot-managed-mode-hook #'eglot-inlay-hints-mode))
 
-  ;; Shared helper – used by every lang-*.el file
-  (cl-defun my/eglot-lang (modes &key server hook extra)
-    "Register language(s) with Eglot the easy way."
-    (let ((modes (if (listp modes) modes (list modes))))
-      (dolist (mode modes)
-        (when server
-          (with-eval-after-load 'eglot
-  	  (add-to-list 'eglot-server-programs (cons mode server)))
-  	)
-        (add-hook (intern (format "%s-hook" mode)) #'eglot-ensure)
-        (when hook
-          (dolist (fn (if (listp hook) hook (list hook)))
-            (add-hook (intern (format "%s-hook" mode)) fn))))
-      (when extra (eval extra))))
+    ;; Shared helper – used by every lang-*.el file
+ (cl-defun my/eglot-lang (modes &key server hook extra)
+  "Register language(s) with Eglot without void-variable errors."
+  (let ((modes (if (listp modes) modes (list modes))))
+    (dolist (mode modes)
+      (when server
+        ;; Splice the finished cons into the form — no free variables
+        (eval-after-load 'eglot
+          `(add-to-list 'eglot-server-programs ',(cons mode server))))
+      (add-hook (intern (format "%s-hook" mode)) #'eglot-ensure)
+      (when hook
+        (let ((fns (if (listp hook) hook (list hook))))
+          (dolist (fn fns)
+            (add-hook (intern (format "%s-hook" mode)) fn)))))
+    (when extra (eval extra)))) 
+  
+    ;;;; Tree-sitter auto-install
+    (require 'treesit)
+  (let ((dll-dir "C:/Program Files/Emacs/bin/"))
+    (add-to-list 'treesit-extra-load-path (expand-file-name dll-dir)))
+  (setq treesit-language-source-alist
+        ;; Format: (LANG URL REVISION SOURCE-DIR)
+        ;; REVISION pins an older tag that still speaks ABI 14
+        '((python     . ("https://github.com/tree-sitter/tree-sitter-python" "v0.23.6"))
+          (rust       . ("https://github.com/tree-sitter/tree-sitter-rust" "v0.23.3"))
+          (c          . ("https://github.com/tree-sitter/tree-sitter-c" "v0.23.4"))
+          (c-sharp    . ("https://github.com/tree-sitter/tree-sitter-c-sharp" "v0.23.1"))
+          (go         . ("https://github.com/tree-sitter/tree-sitter-go" "v0.23.4"))
+          (css        . ("https://github.com/tree-sitter/tree-sitter-css" "v0.23.2"))
+          (javascript . ("https://github.com/tree-sitter/tree-sitter-javascript" "v0.23.1"))
+          (typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.23.2" "typescript/src"))
+          (tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.23.2" "tsx/src"))
+          (json       . ("https://github.com/tree-sitter/tree-sitter-json" "v0.24.8"))
+          (html       . ("https://github.com/tree-sitter/tree-sitter-html" "v0.23.2"))
+          (bash       . ("https://github.com/tree-sitter/tree-sitter-bash" "v0.23.3"))
+          (yaml       . ("https://github.com/tree-sitter/tree-sitter-yaml" "v0.7.0"))))
+  ;; ------------------------------------------------------------
+  ;; Language‑specific remaps – after `treesit` is loaded
+  ;; ------------------------------------------------------------
 
-  ;;;; Tree-sitter auto-install
-  (use-package treesit
-    :ensure nil
-    :config
-    (setq treesit-font-lock-level 4)
 
-    (setq major-mode-remap-alist
-          '((python-mode     . python-ts-mode)
-            (rust-mode       . rust-ts-mode)
-            (csharp-mode     . csharp-ts-mode)
-            (java-mode       . java-ts-mode)
-            (js-mode         . js-ts-mode)
-            (typescript-mode . typescript-ts-mode)
-            (go-mode         . go-ts-mode)
-            (c-mode          . c-ts-mode)
-            (c++-mode        . c++-ts-mode)))
+    
+    (use-package treesit
+      :ensure nil
+      :config
+      (setq treesit-font-lock-level 4)
+      (setq major-mode-remap-alist
+            '((python-mode     . python-ts-mode)
+              (rust-mode       . rust-ts-mode)
+              (csharp-mode     . csharp-ts-mode)
+              (java-mode       . java-ts-mode)
+              (js-mode         . js-ts-mode)
+              (typescript-mode . typescript-ts-mode)
+              (go-mode         . go-ts-mode)
+              (c-mode          . c-ts-mode)
+              (c++-mode        . c++-ts-mode)))
 
-    (defvar my/treesit-languages
-      '(python rust java c csharp javascript typescript go json html css)
-      "Tree-sitter languages to auto-install.")
+      (defvar my/treesit-languages
+        '(python rust java c csharp js tsx go json html css)
+       "Tree-sitter languages to auto-install.")
 
-    (defun my/treesit-install-missing (&optional force)
-      "Install any missing Tree-sitter grammars."
-      (interactive "P")
-      (dolist (lang my/treesit-languages)
-        (condition-case err
-            (if (or force (not (treesit-language-available-p lang)))
-                (progn
-                  (message "Installing Tree-sitter grammar: %s" lang)
-                  (treesit-install-language-grammar lang)
-                  (message "✓ Installed %s" lang))
-              (message "✓ %s already available" lang))
-          (error (message "✗ Failed to install %s: %s" lang err)))))
+      (defun my/treesit-install-missing (&optional force)
+        "Install any missing Tree-sitter grammars."
+        (interactive "P")
+        (dolist (lang my/treesit-languages)
+          (condition-case err
+              (if (or force (not (treesit-language-available-p lang)))
+                  (progn
+                    (message "Installing Tree-sitter grammar: %s" lang)
+                    (treesit-install-language-grammar lang)
+                    (message "✓ Installed %s" lang))
+                (message "✓ %s already available" lang))
+            (error (message "✗ Failed to install %s: %s" lang err)))))
 
-    (run-with-idle-timer 2 nil #'my/treesit-install-missing))
+      (run-with-idle-timer 2 nil #'my/treesit-install-missing))
 
-  (use-package consult-eglot
-    :after (consult eglot)
-    :bind (:map eglot-mode-map
-                ("C-c C-s" . consult-eglot-symbols)))
+  ;;  (use-package consult-eglot
+  ;;    :after (consult eglot)
+  ;;    :bind (:map eglot-mode-map
+  ;;                ("C-c C-s" . consult-eglot-symbols)))
 #+end_src
 
 * Enable languages (the Doom-like part)
@@ -551,23 +671,23 @@ This file is loaded *before* =init.el=. Most of the big startup wins live here.
 Just comment / uncomment a =require= to enable or disable a language.
 
 #+begin_src emacs-lisp :tangle init.el
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; 9. Enable languages
-;;;    Comment / uncomment to enable / disable
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 9. Enable languages
+  ;;;    Comment / uncomment to enable / disable
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(require 'lang-python)
-;;(require 'lang-rust)
-;;(require 'lang-csharp)
-;;(require 'lang-java)
-;;(require 'lang-dotnet)
+  ;(require 'lang-python)
+  (require 'lang-rust)
+  ;(require 'lang-csharp)
+  ;(require 'lang-java)
+  ;(require 'lang-dotnet)
 
-;; (require 'lang-go)
-;; (require 'lang-typescript)
+  (require 'lang-go)
+  (require 'lang-typescript)
+  (require 'lang-svelte)
 #+end_src
 
 * Language modules
-
 ** Python
 
 #+begin_src emacs-lisp :tangle lisp/lang-python.el
@@ -637,9 +757,8 @@ Just comment / uncomment a =require= to enable or disable a language.
   :commands (docker docker-compose))
 
 (use-package docker-compose-mode
-  :mode ("docker-compose\\.ya?ml\\'" . docker-compose-mode)
-  :mode ("compose\\.ya?ml\\'" . docker-compose-mode))
-
+  :mode (("docker-compose\\.ya?ml\\'" . docker-compose-mode)
+         ("compose\\.ya?ml\\'" . docker-compose-mode)))
 ;;;; 3. Smart Compose file discovery (Rider + Visual Studio)
 (defun my/dotnet--compose-files ()
   "Return docker-compose files supporting both Rider and Visual Studio conventions."
@@ -742,12 +861,12 @@ Just comment / uncomment a =require= to enable or disable a language.
 ;;;; 7. Leader keys
 (with-eval-after-load 'general
   (my/leader
-    "o d"   '(:ignore t :which-key "dotnet / docker")
-    "o d u" 'my/dotnet-compose-up
-    "o d d" 'my/dotnet-compose-down
-    "o d l" 'my/dotnet-compose-logs
-    "o d p" 'my/dotnet-compose-ps
-    "o d a" 'my/dotnet-docker-attach
+    "o c"   '(:ignore t :which-key "dotnet / docker")
+    "o c u" 'my/dotnet-compose-up
+    "o c d" 'my/dotnet-compose-down
+    "o c l" 'my/dotnet-compose-logs
+    "o c p" 'my/dotnet-compose-ps
+    "o c a" 'my/dotnet-docker-attach
     "c d"   'dap-debug
     "c D"   'dap-disconnect
     "c b"   'dap-breakpoint-toggle
@@ -759,21 +878,80 @@ Just comment / uncomment a =require= to enable or disable a language.
 (provide 'lang-dotnet)
 ;;; lang-dotnet.el ends here
 #+end_src
+** Go
+#+BEGIN_SRC emacs-lisp :tangle lisp/lang-go.el
+  ;;; lang-go.el --- Go Support -*- lexical-binding: t; -*-
 
-* Auto-formatting (Apheleia)
+  (my/eglot-lang '(go-mode go-ts-mode)
+  		 :server '("gopls"))
+
+  (add-to-list 'major-mode-remap-alist '(go-mode . go-ts-mode))
+
+  (provide 'lang-go)
+  ;;; lang-go.el ends here
+#+END_SRC
+
+** Typescript / Javascript
+#+BEGIN_SRC emacs-lisp :tangle lisp/lang-typescript.el
+  ;;; lang-typescript.el --- Typescript & Javascript Support -*- lexical-binding: t; -*-
+  (my/eglot-lang '(typescript-mode typescript-ts-mode tsx-ts-mode javascript-mode js-ts-mode js-jsx-mode)
+  		   :server '("typescript-language-server" "--stdio"))
+
+(with-eval-after-load 'treesit
+  ;; Typescript / TSX
+  (add-to-list 'major-mode-remap-alist '(typescript-mode . typescript-ts-mode))
+  (add-to-list 'major-mode-remap-alist '(tsx-mode        . tsx-ts-mode))
+  ;; JavaScript
+  (add-to-list 'major-mode-remap-alist '(javascript-mode . js-ts-mode))
+  (when (fboundp 'js-jsx-mode)
+    (add-to-list 'major-mode-remap-alist '(js-jsx-mode . js-ts-mode))))
+
+  (provide 'lang-typescript)
+  ;;; lang-typescript ends here
+#+END_SRC
+
+** Svelte (Sveltkit)
+#+BEGIN_SRC emacs-lisp :tangle lisp/lang-svelte.el
+  ;;; lang-svelte.el --- Svelt / Sveltkit support -*- lexical-binding: t; -*-
+  ;; Major mode for .svelte files
+  (use-package svelte-mode
+      :mode "\\.svelte\\'"
+      :hook (svelte-mode . eglot-ensure)
+      )
+    ;; Register svelte language server with Eglot
+    (with-eval-after-load 'eglot
+    (add-to-list 'eglot-server-programs
+        '(svelte-mode . ("svelteserver" "--stdio"))))
+  ;; also treat svelte-mode as a TS-aware buffer for some tools
+  (with-eval-after-load 'apheleia
+      (setf (alist-get 'svelte-mode apheleia-mode-alist) 'prettier))
+
+  (provide 'lang-svelte)
+  ;;; lang-svelte.el ends here
+#+end_src
+
+* AUTO-formatting (Apheleia)
 
 #+begin_src emacs-lisp :tangle init.el
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; 10. Auto-formatting (Apheleia)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 10. Auto-formatting (Apheleia)
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(use-package apheleia
-  :init (apheleia-global-mode +1)
-  :config
-  (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
-  (setf (alist-get 'python-ts-mode apheleia-mode-alist) 'ruff)
-  (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
-  (setf (alist-get 'rust-ts-mode apheleia-mode-alist) 'rustfmt))
+  (use-package apheleia
+    :init (apheleia-global-mode +1)
+    :config
+    (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
+    (setf (alist-get 'python-ts-mode apheleia-mode-alist) 'ruff)
+    (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
+    (setf (alist-get 'rust-ts-mode apheleia-mode-alist) 'rustfmt)
+    (setf (alist-get 'go-mode apheleia-mode-alist) 'gofmt)
+    (setf (alist-get 'go-ts-mode apheleia-mode-alist) 'gofmt)
+    (setf (alist-get 'typescript-mode apheleia-mode-alist) 'prettier)
+    (setf (alist-get 'typescript-ts-mode apheleia-mode-alist) 'prettier)
+    (setf (alist-get 'tsx-ts-mode apheleia-mode-alist) 'prettier)
+    (setf (alist-get 'js-mode apheleia-mode-alist) 'prettier)
+    (setf (alist-get 'js-ts-mode apheleia-mode-alist) 'prettier)
+    (setf (alist-get 'svelte-mode apheleia-mode-alist) 'prettier))
 #+end_src
 
 * Debugging (DAP)
@@ -806,15 +984,312 @@ Just comment / uncomment a =require= to enable or disable a language.
   :hook (magit-mode . magit-delta-mode))
 #+end_src
 
+* Setup Doctor
+#+BEGIN_SRC emacs-lisp :tangle init.el
+          (require 'cl-lib)
+          (require 'treesit nil t)
+
+          (defgroup my-doctor nil
+            "Diagnostics for this Emacs Distro."
+          :group 'tools)
+
+
+  (defvar my/doctor-binaries
+  '(("emacs"  . required)
+    ("git"    . required)
+    ("rg"     . required)
+    ("fd"     . required)
+    ("fzf"    . optional)
+    ("node"   . optional)
+    ("npm"    . optional)
+    ("go"     . optional)
+    ("rustc"  . optional)
+    ("cargo"  . optional)
+    ("dotnet" . optional)
+    ("aspell" . optional)
+    ("bat"    . optional)
+    ("docker" . optional))
+  "System binaries to check.")
+          (defvar my/doctor-language-servers
+            '(("pyright-languageserver" . "Python")
+              ("rust-analyzer" . "Rust")
+              ("gopls" . "Go")
+              ("typescript-language-server" . "Typescript/JS")
+              ("svelteserver" . "Svelte")
+              ("csharp-ls" . "C#")
+              ("jdtls" . "java")
+              ("prettier" . "Formatter")
+              ("ruff" . "Python Formatter")
+            )
+            "Language servers / Formatters"
+        )
+
+        (defvar my/doctor-treesit-langs
+          '(pyhthon rust java c csharp javascript typescript tsx go json html css
+        	bash yaml toml)
+          "Grammars we care about"
+        )
+
+        (defun my/doctor--status (ok msg)
+          (insert (if ok "  ✔️" "  ❌" ) msg "\n")
+         ok)
+
+        (defun my/doctor--header (title)
+          (insert "\n> " title "\n"
+        	   (make-string (+ 2 (length title)) ?-) "\n"))
+
+(defun my/doctor-check-binaries ()
+  (my/doctor--header "System binaries")
+  (dolist (spec my/doctor-binaries)
+    (let* ((bin (car spec))
+           (required (eq (cdr spec) 'required))
+           (exe (executable-find bin)))
+      (if exe
+          (my/doctor--status t (format "%-12s %s" bin exe))
+        (my/doctor--status (not required)
+                           (format "%-12s MISSING%s"
+                                   bin
+                                   (if required " (required)" " (optional)")))))))
+
+(defun my/doctor-check-language-servers ()
+  (my/doctor--header "Language servers / formatters")
+  (dolist (spec my/doctor-language-servers)
+    (let* ((bin (car spec))
+           (lang (cdr spec))
+           (exe (executable-find bin)))
+      (if exe
+          (my/doctor--status t (format "%-28s (%s) %s" bin lang exe))
+        (my/doctor--status t (format "%-28s (%s) not found" bin lang))))))
+
+(defun my/doctor-check-windows-git ()
+  (when (eq system-type 'windows-nt)
+    (my/doctor--header "Windows Git / PATH")
+    (let ((git (executable-find "git")))
+      (my/doctor--status (not (null git))
+                         (format "git → %s" (or git "MISSING"))))
+    (insert (format "  · exec-path (head): %S\n"
+                    (cl-subseq exec-path 0 (min 5 (length exec-path)))))))
+  
+      (defun my/doctor-check-treesit ()
+    (my/doctor--header "Tree-sitter")
+    (unless (featurep 'treesit)
+      (my/doctor--status nil "treesit not available in this Emacs build")
+      (cl-return-from my/doctor-check-treesit))
+
+    (my/doctor--status (fboundp 'treesit-available-p)
+                       (format "treesit-available-p → %s"
+                               (and (fboundp 'treesit-available-p)
+                                    (treesit-available-p))))
+
+    ;; Grammar load path
+    (when (boundp 'treesit-extra-load-path)
+      (insert (format "  · treesit-extra-load-path: %S\n" treesit-extra-load-path)))
+    (insert (format "  · user-emacs-directory: %s\n" user-emacs-directory))
+
+    (dolist (lang my/doctor-treesit-langs)
+      (condition-case err
+          (let ((ok (treesit-language-available-p lang)))
+            (if ok
+                ;; Try to surface ABI / version info when possible
+                (let* ((ver (ignore-errors
+                              (treesit-language-abi-version lang)))
+                       (extra (if ver (format " (ABI %s)" ver) "")))
+                  (my/doctor--status t (format "%-12s available%s" lang extra)))
+              (my/doctor--status nil
+                                 (format "%-12s NOT available — try M-x my/treesit-install-missing"
+                                         lang))))
+        (error
+         (my/doctor--status nil
+                            (format "%-12s ERROR: %s" lang (error-message-string err)))))))
+
+  (defun my/doctor-check-project ()
+    (my/doctor--header "project.el")
+    (require 'project nil t)
+    (let ((p (ignore-errors (project-current t))))
+      (if p
+          (my/doctor--status t (format "current root: %s" (project-root p)))
+        (my/doctor--status t
+                           "no project root here (open a file inside a repo or add .project)")))
+    (when (boundp 'project-vc-extra-root-markers)
+      (insert (format "  · extra markers: %S\n" project-vc-extra-root-markers))))
+
+  (defun my/doctor-check-windows-git ()
+    (when (eq system-type 'windows-nt)
+      (my/doctor--header "Windows Git / PATH")
+      (my/doctor--status (executable-find "git")
+                         (format "git → %s" (or (executable-find "git") "MISSING")))
+      (insert (format "  · exec-path (head): %S\n"
+                      (cl-subseq exec-path 0 (min 5 (length exec-path)))))))
+
+  (defun my/doctor-fix-tips ()
+    (my/doctor--header "Tree-sitter grammar tips (ABI / version mismatches)")
+    (insert
+     "  If a grammar is 'available' but fonts/features fail, or you see errors
+    about language version / ABI (e.g. version 13 vs 14/15/16):
+
+    1. Delete the old grammar shared library, then reinstall:
+         - Linux:   ~/.emacs.d/tree-sitter/libtree-sitter-*.so
+         - macOS:   ~/.emacs.d/tree-sitter/libtree-sitter-*.dylib
+         - Windows: %USERPROFILE%\\.emacs.d\\tree-sitter\\libtree-sitter-*.dll
+
+    2. M-x my/treesit-install-missing   (or with C-u to force)
+
+    3. Ensure sources exist (Emacs 29+):
+         (setq treesit-language-source-alist
+               ;; see M-x describe-variable treesit-language-source-alist
+               ...)
+
+    4. Your Emacs must be built WITH tree-sitter.
+         M-: (treesit-available-p)  → should be t
+
+    5. 'v16' almost always means grammar ABI/language version, not Emacs 16.
+       Rebuilding/reinstalling the grammar against THIS Emacs fixes it.\n"))
+
+  ;;;###autoload
+  (defun my/doctor ()
+    "Run health checks for this config (tools, LSP, tree-sitter)."
+    (interactive)
+    (let ((buf (get-buffer-create "*my-doctor*")))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Emacs doctor  —  %s\n" (emacs-version)))
+          (insert (format "system-type: %s | system-name: %s\n"
+                          system-type (system-name)))
+          (my/doctor-check-binaries)
+          (my/doctor-check-language-servers)
+          (my/doctor-check-treesit)
+          (my/doctor-check-project)
+          (my/doctor-check-windows-git)
+          (my/doctor-fix-tips)
+          (insert "\nDone.\n")
+          (special-mode)
+          (goto-char (point-min))))
+      (display-buffer buf)))
+
+  ;;;###autoload
+  (defun my/treesit-reinstall-grammar (lang)
+    "Delete and reinstall Tree-sitter grammar for LANG (symbol)."
+    (interactive
+     (list (intern (completing-read "Language: "
+                                    (mapcar #'symbol-name my/doctor-treesit-langs)
+                                    nil t))))
+    (let* ((dir (expand-file-name "tree-sitter" user-emacs-directory))
+           (patterns (list (format "libtree-sitter-%s.so" lang)
+                           (format "libtree-sitter-%s.dylib" lang)
+                           (format "libtree-sitter-%s.dll" lang)
+                           (format "libtree-sitter-%s.so.*" lang))))
+      (when (file-directory-p dir)
+        (dolist (f (directory-files dir t "libtree-sitter-"))
+          (when (string-match-p (regexp-quote (symbol-name lang)) (file-name-nondirectory f))
+            (message "Removing %s" f)
+            (delete-file f))))
+      (treesit-install-language-grammar lang)
+      (message "Reinstalled grammar: %s (available=%s)"
+               lang (treesit-language-available-p lang))))
+
+  (provide 'doctor)
+  ;;; doctor.el ends here
+
+#+END_SRC 
+* LaTeX
+
+#+begin_src emacs-lisp :tangle init.el
+(use-package auctex
+  :ensure t
+  :mode ("\\.tex\\'" . LaTeX-mode)
+  :custom
+  (TeX-auto-save t)
+  (TeX-parse-self t)
+  (TeX-PDF-mode t)
+  (TeX-source-correlate-mode t)
+  (TeX-view-program-selection '((output-pdf "PDF Tools")))
+  (TeX-view-program-list '(("PDF Tools" TeX-pdf-tools-sync-view)))
+  :config
+  (add-hook 'LaTeX-mode-hook #'turn-on-reftex)
+  (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode)
+  (add-hook 'LaTeX-mode-hook #'flyspell-mode)
+  (add-hook 'TeX-after-compilation-finished-functions
+            #'TeX-revert-document-buffer)
+  (with-eval-after-load 'latex
+    (define-key LaTeX-mode-map (kbd "C-c C-c") #'TeX-command-master)
+    (define-key LaTeX-mode-map (kbd "C-c C-v") #'TeX-view)
+    (define-key LaTeX-mode-map (kbd "C-c C-e") #'LaTeX-environment)))
+
+(use-package pdf-tools
+  :ensure t
+  :mode ("\\.pdf\\'" . pdf-view-mode)
+  :config
+  (pdf-tools-install :no-query)
+  (setq-default pdf-view-display-size 'fit-page))
+
+(use-package flyspell
+  :ensure nil
+  :hook ((text-mode . flyspell-mode)
+         (LaTeX-mode . flyspell-mode))
+  :config
+  (setq ispell-program-name
+        (or (executable-find "aspell")
+            (executable-find "hunspell")
+            ispell-program-name)))
+#+end_src
+
+
+#+begin_src emacs-lisp :tangle init.el
+  (use-package auctex
+    :ensure t
+    :mode ("\\.tex\\'" . LaTeX-mode)
+    :custom
+    (TeX-auto-save t)
+    (TeX-parse-self t)
+    (TeX-PDF-mode t)
+    (TeX-source-correlate-mode t)
+    (TeX-view-program-selection '((output-pdf "PDF Tools")))
+    (TeX-view-program-list '(("PDF Tools" TeX-pdf-tools-sync-view)))
+    :config
+    (add-hook 'LaTeX-mode-hook #'turn-on-reftex)
+    (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode)
+    (add-hook 'LaTeX-mode-hook #'flyspell-mode)
+    (add-hook 'TeX-after-compilation-finished-functions
+              #'TeX-revert-document-buffer)
+    (with-eval-after-load 'latex
+      (define-key LaTeX-mode-map (kbd "C-c C-c") #'TeX-command-master)
+      (define-key LaTeX-mode-map (kbd "C-c C-v") #'TeX-view)
+      (define-key LaTeX-mode-map (kbd "C-c C-e") #'LaTeX-environment)))
+
+  (use-package pdf-tools
+    :ensure t
+    :mode ("\\.pdf\\'" . pdf-view-mode)
+    :config
+    (pdf-tools-install :no-query)
+    (setq-default pdf-view-display-size 'fit-page))
+
+  (setq TeX-source-correlate-mode t
+        TeX-source-correlate-method 'synctex
+        TeX-source-correlate-start-server t)
+
+  
+  (use-package flyspell
+    :ensure nil
+    :hook ((text-mode . flyspell-mode)
+           (LaTeX-mode . flyspell-mode))
+    :config
+    (setq ispell-program-name
+          (or (executable-find "aspell")
+              (executable-find "hunspell")
+              ispell-program-name)))
+#+end_src
+
 * Other tools
 
 #+begin_src emacs-lisp :tangle init.el
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; 13. Other tools
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(use-package paredit
-  :hook ((emacs-lisp-mode lisp-mode) . paredit-mode))
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; 13. Other tools
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (use-package paredit
+    :hook ((emacs-lisp-mode lisp-mode) . paredit-mode))
+  (require  'doctor nil t)
+  
 #+end_src
 
 * Theme, font & transparency
