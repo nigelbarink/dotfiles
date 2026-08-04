@@ -14,17 +14,6 @@
 (setq display-line-numbers-type 'relative)
 (global-display-line-numbers-mode 1)
 
-
-(use-package catppuccin-theme)
-
-; Enable and configure ido
-(setq ido-enable-flex-matching t)
-(setq ido-everywhere t)
-(ido-mode 1)
-(require 'ido-vertical-mode )
-(ido-vertical-mode 1)
-
-
 ; Init Load-package plugin manager
 (require 'package)					
 (require 'use-package-ensure)
@@ -35,6 +24,16 @@
 (when (not package-archive-contents)
   (package-refresh-contents))
 (package-initialize)
+
+
+(use-package catppuccin-theme)
+(use-package ido-vertical-mode)
+ ; Enable and configure ido
+(setq ido-enable-flex-matching t)
+(setq ido-everywhere t)
+(ido-mode 1)
+(require 'ido-vertical-mode )
+(ido-vertical-mode 1)
 
 (use-package vertico
   :init (vertico-mode))
@@ -74,12 +73,11 @@
 (use-package all-the-icons)
 (use-package nerd-icons)
 
-
-(use-package doom-modeline
-  :init (doom-modeline-mode 1)
-  )
-
-
+; (use-package doom-modeline
+;  :init (doom-modeline-mode 1)
+;  :custom ((doom-modeline-height 15)
+;	  )
+;  )
 ;; IDE Mode
 (use-package project)
 (use-package eglot)
@@ -124,7 +122,7 @@
 	     '(csharp-mode . ("csharp-ls")))
 (add-hook 'csharp-mode-hook 'eglot-ensure)
 
-					; Set up Rust
+; Set up Rust
 (add-to-list 'eglot-server-programs
 	     '(rust-mode . ("rust-analyzer")))
 (add-hook rust-mode-hook 'eglot-ensure)
