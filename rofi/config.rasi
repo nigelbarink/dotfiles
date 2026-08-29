@@ -11,4 +11,4 @@ configuration {
   }
 }
 
-@theme "/home/nigel/.local/share/rofi/themes/catppuccin-frappe.rasi"
+@theme "~/.local/share/rofi/themes/catppuccin-frappe.rasi"

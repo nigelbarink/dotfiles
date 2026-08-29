@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 
 # install fzf 
 git clone --depth 1 https://github.com/junegunn/fzf.git /tmp/fzf-source

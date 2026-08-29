@@ -92,6 +92,11 @@ alias ll='ls -l'
 alias la='ls -A'
 alias l='ls -CF'
 
+
+# ripgrep alias
+alias hl='rg --passthru'
+
+
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -119,5 +124,5 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# Add cargo 
-source "$HOME/.cargo/env"
+# Add cargo (guard for Windows/Git Bash where cargo may not exist)
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"

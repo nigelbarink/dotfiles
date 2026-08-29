@@ -1,21 +1,25 @@
-# Import the module
-Import-Module Catppuccin
-
-# Set a flavor for easy access
-$Flavor = $Catppuccin['Mocha']
-Import-Module -Name Microsoft.WinGet.CommandNotFound
-Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
-Invoke-Expression (& { (zoxide init --cmd cd powershell | Out-String ) })
-
-# The following colors are used by PowerShell's formatting
-# Again PS 7.2+ only
-$PSStyle.Formatting.Debug = $Flavor.Sky.Foreground()
-$PSStyle.Formatting.Error = $Flavor.Red.Foreground()
-$PSStyle.Formatting.ErrorAccent = $Flavor.Blue.Foreground()
-$PSStyle.Formatting.FormatAccent = $Flavor.Teal.Foreground()
-$PSStyle.Formatting.TableHeader = $Flavor.Rosewater.Foreground()
-$PSStyle.Formatting.Verbose = $Flavor.Yellow.Foreground()
-$PSStyle.Formatting.Warning = $Flavor.Peach.Foreground()
+# Import Catppuccin theme if available (cross-platform guard)
+Import-Module Catppuccin -ErrorAction SilentlyContinue
+if ($Catppuccin) {
+    $Flavor = $Catppuccin['Mocha']
+    # PS 7.2+ only
+    if ($PSStyle) {
+        $PSStyle.Formatting.Debug = $Flavor.Sky.Foreground()
+        $PSStyle.Formatting.Error = $Flavor.Red.Foreground()
+        $PSStyle.Formatting.ErrorAccent = $Flavor.Blue.Foreground()
+        $PSStyle.Formatting.FormatAccent = $Flavor.Teal.Foreground()
+        $PSStyle.Formatting.TableHeader = $Flavor.Rosewater.Foreground()
+        $PSStyle.Formatting.Verbose = $Flavor.Yellow.Foreground()
+        $PSStyle.Formatting.Warning = $Flavor.Peach.Foreground()
+    }
+}
+Import-Module -Name Microsoft.WinGet.CommandNotFound -ErrorAction SilentlyContinue
+if (Get-Module -Name PSFzf -ErrorAction SilentlyContinue) {
+    Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r' -ErrorAction SilentlyContinue
+}
+if (Get-Command zoxide -ErrorAction SilentlyContinue) {
+    Invoke-Expression (& { (zoxide init --cmd cd powershell | Out-String) })
+}
 
 # Modified from the official Catppuccin fzf configuration at: https://github.com/catppuccin/fzf/
 $ENV:FZF_DEFAULT_OPTS = @"
@@ -26,11 +30,15 @@ $ENV:FZF_DEFAULT_OPTS = @"
 --color=border:$($Flavor.Surface2)
 "@
 
-$ENV:HOME="C:\Users\nigel"
 $ENV:EDITOR="nvim"
-set-alias -Name emacs -Value 'runemacs.exe -nw'
-Set-PSReadlineOption -Colors $Colors 
-$ENV:YAZI_FILE_ONE = 'C:\Program Files\Git\usr\bin\file.exe'
+set-alias -Name emacs -Value 'runemacs.exe -nw' -ErrorAction SilentlyContinue
+if ($Colors) { Set-PSReadlineOption -Colors $Colors -ErrorAction SilentlyContinue }
+# YAZI_FILE_ONE: prefer portable Git file.exe location; fall back to system 'file'
+if (Test-Path 'C:\Program Files\Git\usr\bin\file.exe') {
+    $ENV:YAZI_FILE_ONE = 'C:\Program Files\Git\usr\bin\file.exe'
+} elseif (Get-Command file -ErrorAction SilentlyContinue) {
+    $ENV:YAZI_FILE_ONE = (Get-Command file).Source
+}
 function y ()
 {
     $tmp = [System.IO.Path]::GetTempFileName()
@@ -88,8 +96,8 @@ function prompt
     "[$ipv4Label $gitBranch ]`n$currentLocation@$Env:COMPUTERNAME $('(PS [>_])$' * ($nestedPromptLevel + 1)) ";
 }
 
-set-alias -Name lg -Value lazygit
+set-alias -Name lg -Value lazygit -ErrorAction SilentlyContinue
 
-
-
-podman completion powershell | Out-string  | Invoke-Expression
+if (Get-Command podman -ErrorAction SilentlyContinue) {
+    podman completion powershell | Out-String | Invoke-Expression
+}

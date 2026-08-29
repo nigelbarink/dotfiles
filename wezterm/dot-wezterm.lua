@@ -23,44 +23,54 @@ if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
         label = 'PowerShell 7',
         args = { 'pwsh.exe', '-NoLogo' },
     })
+    -- Developer PowerShell: use ProgramFiles(x86) env var for portability
+    local program_files_x86 = os.getenv("ProgramFiles(x86)") or "C:/Program Files (x86)"
+    local dev_shell_dll = program_files_x86 .. "/Microsoft Visual Studio/18/BuildTools/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
+    local git_root = os.getenv("WEZTERM_GIT_ROOT") or "G:/git"
     table.insert(launch_menu, {
         label = "Developer PowerShell",
         args = {
             'pwsh.exe',
             '-noe',
             '-c',
-            '&{Import-Module "C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/Tools/Microsoft.VisualStudio.DevShell.dll";Enter-VsDevShell 6c43edf9 };wezterm cli set-tab-title \'Developer Powershell\''
+            '&{Import-Module "' .. dev_shell_dll .. '";Enter-VsDevShell 6c43edf9 };wezterm cli set-tab-title \'Developer Powershell\''
         },
-        cwd = 'G:/git'
+        cwd = git_root
     })
 
-
+    local user_profile = os.getenv("USERPROFILE") or wezterm.home_dir
     table.insert(launch_menu, {
         label = "Conda PowerShell",
         args = {
             'pwsh.exe',
             '-noe',
             '-c',
-            '& \'C:/Users/nigel/miniconda3/shell/condabin/conda-hook.ps1\'; conda activate base '
+            '& \'' .. user_profile .. '/miniconda3/shell/condabin/conda-hook.ps1\'; conda activate base '
         },
-        cwd = 'G:/git/Machine Learning'
+        cwd = git_root .. "/Machine Learning"
     })
 
-    for _, vsvers in
-    ipairs(wezterm.glob('VisualStudio20*', 'D:/')) do
-        local year = vsvers:gsub('VisualStudio', '')
-        table.insert(launch_menu, {
-            label = 'X64 Native Tools VS ' .. year,
-            args = {
-                'cmd.exe',
-                '/k',
-                'D:/' .. vsvers .. '/VC/Auxiliary/Build/vcvars64.bat' },
-        })
+    -- Search for Visual Studio installs on D: then C: (portable across drive layouts)
+    local vs_roots = { "D:/", "C:/" }
+    for _, root in ipairs(vs_roots) do
+        for _, vsvers in ipairs(wezterm.glob('VisualStudio20*', root)) do
+            local year = vsvers:gsub('VisualStudio', '')
+            table.insert(launch_menu, {
+                label = 'X64 Native Tools VS ' .. year,
+                args = {
+                    'cmd.exe',
+                    '/k',
+                    root .. vsvers .. '/VC/Auxiliary/Build/vcvars64.bat' },
+            })
+        end
     end
 end
 
 if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
-    config.default_prog = { 'C:/Program Files/Powershell/7/pwsh.exe' }
+    -- Prefer PowerShell 7 at standard location; fall back to pwsh on PATH if not found
+    local pwsh_path = "C:/Program Files/PowerShell/7/pwsh.exe"
+    local f = io.open(pwsh_path, "r")
+    if f then f:close(); config.default_prog = { pwsh_path } else config.default_prog = { 'pwsh.exe', '-NoLogo' } end
 else
     config.default_prog = { '/usr/bin/bash' }
 end
