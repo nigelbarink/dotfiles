@@ -1,17 +1,87 @@
-# My linux dotfiles
-## Using GNU stow tools to symlink to the home directory
+# My dotfiles
 
-![dotfiles](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZ8AAAB5CAMAAADRVtyNAAAA9lBMVEX///8AAAATExOAgIBKXG2MjIz4/f//+/P///0PAACvo5T8///++/f///m1wc3j2c4OCwgeMkaLfWySn63o8fnGu61iUTz17eIAABSlmIp3hpUvFQDV3+rc0MQhOE2BcWCdqre9saRYaXnf6fFWQy2+ytbQx7oAACGbjn6DkaAgAAAvRlp1Y1KotMDz8/PJxcTKzdCEf3rk4NoaEQg1Oj+boKVkdYQsDgBITlPW2NualpNHQzyBd22CiZBGMh1eY2inrK8+JQ9eWVI6LR9AS1gAFDBZSz8+NSgFEx65tK8AFSpgWE9XRjRwZ2B2d3atsLJmbXQMJj58qcsFAAADuElEQVR4nO3ca1cSQRjAcTckkDDKUjIzoIysCJQkxUteSy1vff8vE5eZZWeZWRZmYTn0/71Sz7I7Zx7m/rhzcwAAAAAAAAAAAAAAAAAAAAAAAAAAAAgj5zxqe/Y87oJAa8npehF3QaCzKMLjvIy7JNBZFuGZj7sg0FoR8Xkad0GgkxfhefUk7pJAZ1XE53XcBYHWmojPm7gLAp11EZ63cRcEWgURn6LlfVKJZDKZeBxBieCRimrxk2MJNQ4lEZ53tjfq9pPvoygTejZEfD7Y3qjMJGMM5OLno/WdlqMJMxSbIj6frO+UYQ9iDD6L+NiPG91l7tcIygRXWYTni/2tljiiiF5FxCeCr30hon5yxqWrvj/UAi52Fz+jLitXj7bkRyvKJl62tk1X16e+/a1VRzsNT3W3QtAw1n5GhOf7qA/cbX14r9Fs/7jRW0Y19w+i6TNnS/pQNgen4f6xE4Ijf6MSflgufnLyeccn1dPOD/P1k7OodiRmTPbc6bkQbUb2YNqzHVm9P0d95KYTpDjqbWdS+lytnW6b+OUow4LKOi9kNzA+7Ih7VfzVc7xVrV0GdTWLC7YdUXXfHJ0r87D3P1o215Rp1htJXsj1pfaJO2wkKNKyLeycLfRV1m/9ZyLKC6n96XvgcdPulrMn46nra3916TeV5daofu4wjPq28rgjJm5+svl0JwVZ9RttaB8ypFHkheQ8jyM6/fLdeZq7zsx46su0uDkNbF3DufE8z/qkbybVbx3vLnT+Vg4Fpq+zzAuJIim+pLRXzoC08ofKRKx6nbxL3Bs2DuZ6i5+i/ZNTSnhM0xEMY4ik+Gpzqxk4h5ApQHJiwia2vdCLn9pB57oH8wme7CmfusMeWSLWwuaFyHEs4IxorddqRKfJ1rWtsHkhBafHME9f9U7bbgbEEuHIpPgBQ8W646XdUMsr08DUQsClCE3mhQxY/Kwo8SnqLrlRpxn17q8jn/ihTbaLAQOFb+Ksm0vk/XEuq/HCKEImxefU+GjP8TqbSd7xpt11PvC/XjbC5oWow49p4VnybeFVyFK0VHK8cy6zMO2nxbdJkTVvWiCUsHkhi2p82PmcjPB5IQUlPnRbkxE+Kb7uDQ+vf5kQeQIeYpvMe5DErtpkyKT4izAXy6mEc0V4JmS4pPhqJ1l3737MhYLk5oWwRzaVrJPiMVanIj78K+9Ukoufv3EXBFq8LHGq8bLE6cbLEqcbL0ucau7iJ+6CQKt8l+goxl0QAAAAAAAAAAAAAAAAAAAAAAAwmn+UIjSev/qgnAAAAABJRU5ErkJggg==)
+Using GNU stow tools to symlink to the home directory.  Cross‑platform:
+Linux (Debian/Ubuntu) and Windows (via PowerShell bootstrapper).
 
+---
 
-## Rice 
+## Quick start
 
-### Tokyo Night ( KDE with I3 ) 
-![TokyoNight Rice of Debian 12](rice/DebianRice_TokyoNight_KDE_i3.png)
+### Linux
 
-Resources used:
+```bash
+git clone <url> ~/.dotfiles
+cd ~/.dotfiles
+# Install prerequisites (stow, zsh, git, curl, etc. — see bootstrap.sh)
+./bootstrap.sh
+./scripts/activate.sh          # symlink all packages
+# optional: ./scripts/deactivate.sh  to remove symlinks
+```
 
-[managing dotfiles](https://www.jakewiesler.com/blog/managing-dotfiles)
+### Windows
 
+```powershell
+git clone <url> $env:USERPROFILE\.dotfiles
+pwsh -ExecutionPolicy Bypass -File $env:USERPROFILE\.dotfiles\bootstrap.ps1
+# (optional) pwsh -ExecutionPolicy Bypass -File $env:USERPROFILE\.dotfiles\bootstrap.ps1 -IncludeWSL
+# Then launch wezterm / starship / yazi etc. as normal.
+```
 
-[Using Git to manage your dotfiles](https://blog.smalleycreative.com/using-git-and-github-to-manage-your-dotfiles)
+---
+
+## Bootstrap scripts
+
+- `bootstrap.sh` (Linux / macOS) – detects `stow` availability and installs missing
+  packages via `apt`/`brew`/`dnf`, then runs `stow --dotfiles` for the
+  cross‑platform package set.  Skips Linux‑only packages (`i3`, `polybar`,
+  `picom`, `rofi`) unless `-IncludeWSL` is given.
+
+- `bootstrap.ps1` (Windows) – the primary ease‑of‑use entry point.  It
+
+  1. Detects Windows Developer Mode (symlinks without admin elevation).
+  2. Installs packages via `winget` (user scope) with idempotent checks.
+  3. Installs PowerShell modules (`PSFzf`, `Catppuccin`).
+  4. Creates symlinks / junctions for dotfiles; falls back to `Copy-Item`
+     if not elevated or Developer Mode is off.
+  5. Maps repo files to Windows config locations (`wezterm`, `powershell`,
+     `starship`, `git`, `yazi`, `alacritty`).
+  6. Skips Linux‑only packages (`i3`, `polybar`, `picom`, `rofi`) by default;
+     use `-IncludeWSL` to stow them inside WSL.
+
+---
+
+## Packages overview
+
+| Package | Cross‑platform? | Windows default? | Linux‑only |
+|---------|-----------------|------------------|-----------|
+| `wezterm` | ✅ | ✅ (via bootstrap.ps1) | — |
+| `starship` | ✅ | ✅ | — |
+| `git` | ✅ | ✅ | — |
+| `vim` | ✅ | ✅ | — |
+| `emacs` | ✅ | ✅ | — |
+| `alacritty` | ✅ | ✅ | — |
+| `yazi` | ✅ | ✅ | — |
+| `powershell` | ✅ (primary) | ✅ | — |
+| `zsh` | WSL only | — | ✅ (via bootstrap.sh) |
+| `bash` | WSL only | — | ✅ (via bootstrap.sh) |
+| `tmux` | WSL only | — | ✅ (via bootstrap.sh) |
+| `i3` | — | — | ✅ (X11, via `-IncludeWSL`) |
+| `polybar` | — | — | ✅ (via `-IncludeWSL`) |
+| `picom` | — | — | ✅ (via `-IncludeWSL`) |
+| `rofi` | — | — | ✅ (via `-IncludeWSL`) |
+
+---
+
+## Post‑install
+
+- Restart your terminal (or run `. $PROFILE`) so PowerShell modules take effect.
+- Run `doctor` (conceptual) to verify all links and installed packages.
+- Use `./scripts/activate.sh` / `./scripts/deactivate.sh` to toggle symlinks.
+- On Windows, the PowerShell profile (`$env:USERPROFILE\Documents\PowerShell\Microsoft.PowerShell_profile.ps1`) is auto‑sourced by `pwsh`.
+
+---
+
+## Resources
+
+- [managing dotfiles](https://www.jakewiesler.com/blog/managing-dotfiles)
+- [Using Git to manage your dotfiles](https://blog.smalleycreative.com/using-git-and-github-to-manage-your-dotfiles)
